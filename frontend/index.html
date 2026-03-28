@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClipConnect - Connect. Create. Conquer.</title>
+    <meta name="description" content="Premium platform connecting video editors with clients. Find the perfect editor for your next project.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/animations.css">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-video"></i>
+                <span>ClipConnect</span>
+            </div>
+            
+            <ul class="nav-menu">
+                <li><a href="#home" class="nav-link">Home</a></li>
+                <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
+                <li><a href="#editors" class="nav-link">Editors</a></li>
+                <li><a href="#testimonials" class="nav-link">Testimonials</a></li>
+            </ul>
+            
+            <div class="nav-actions">
+                <button class="btn btn-outline" onclick="showLogin()">Login</button>
+                <button class="btn btn-primary" onclick="showSignup()">Get Started</button>
+            </div>
+            
+            <div class="nav-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="hero-bg">
+            <div class="particles"></div>
+            <div class="gradient-overlay"></div>
+        </div>
+        
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    <span class="gradient-text">Connect.</span>
+                    <span class="gradient-text">Create.</span>
+                    <span class="gradient-text">Conquer.</span>
+                </h1>
+                <p class="hero-subtitle">
+                    The premium marketplace where visionary content creators meet elite video editors. 
+                    Transform your ideas into stunning visual stories.
+                </p>
+                <div class="hero-actions">
+                    <button class="btn btn-primary btn-large" onclick="showRoleSelection('client')">
+                        <i class="fas fa-hire-a-helper"></i>
+                        Hire an Editor
+                    </button>
+                    <button class="btn btn-secondary btn-large" onclick="showRoleSelection('editor')">
+                        <i class="fas fa-user-edit"></i>
+                        Join as Editor
+                    </button>
+                </div>
+                
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number" data-count="500">0</span>
+                        <span class="stat-label">Expert Editors</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" data-count="2000">0</span>
+                        <span class="stat-label">Projects Completed</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" data-count="98">0</span>
+                        <span class="stat-label">% Satisfaction</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hero-visual">
+                <div class="floating-card card-1">
+                    <div class="card-avatar">
+                        <img src="https://picsum.photos/seed/editor1/50/50.jpg" alt="Editor">
+                    </div>
+                    <div class="card-content">
+                        <h4>Sarah Chen</h4>
+                        <p>Video Editing Expert</p>
+                        <div class="rating">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="floating-card card-2">
+                    <div class="project-preview">
+                        <img src="https://picsum.photos/seed/project1/300/200.jpg" alt="Project">
+                        <div class="project-overlay">
+                            <h5>YouTube Content</h5>
+                            <p>$500 - $800</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="floating-card card-3">
+                    <div class="achievement-badge">
+                        <i class="fas fa-trophy"></i>
+                        <span>Top Rated Editor</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">How It Works</h2>
+                <p class="section-subtitle">Simple steps to get your project started</p>
+            </div>
+            
+            <div class="steps-container">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h3>Sign Up</h3>
+                    <p>Create your account as a client or editor in seconds</p>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>Find Match</h3>
+                    <p>Browse talented editors or post your project requirements</p>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <h3>Collaborate</h3>
+                    <p>Work together seamlessly with our messaging system</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Editors Section -->
+    <section id="editors" class="featured-editors">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Featured Editors</h2>
+                <p class="section-subtitle">Meet our top-rated video editing professionals</p>
+            </div>
+            
+            <div class="editors-carousel">
+                <div class="editor-card">
+                    <div class="editor-avatar">
+                        <img src="https://picsum.photos/seed/editor2/100/100.jpg" alt="Editor">
+                        <div class="status-indicator online"></div>
+                    </div>
+                    <h3>Alex Rivera</h3>
+                    <p class="editor-specialty">Motion Graphics Expert</p>
+                    <div class="editor-rating">
+                        <div class="stars">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <span>4.9 (127 reviews)</span>
+                    </div>
+                    <div class="editor-rate">
+                        <span class="rate">$75</span>
+                        <span class="rate-unit">/hour</span>
+                    </div>
+                    <div class="editor-skills">
+                        <span class="skill-tag">After Effects</span>
+                        <span class="skill-tag">Premiere Pro</span>
+                        <span class="skill-tag">Cinema 4D</span>
+                    </div>
+                    <button class="btn btn-outline btn-small">View Profile</button>
+                </div>
+                
+                <div class="editor-card">
+                    <div class="editor-avatar">
+                        <img src="https://picsum.photos/seed/editor3/100/100.jpg" alt="Editor">
+                        <div class="status-indicator online"></div>
+                    </div>
+                    <h3>Maya Patel</h3>
+                    <p class="editor-specialty">Documentary Editing</p>
+                    <div class="editor-rating">
+                        <div class="stars">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <span>4.8 (89 reviews)</span>
+                    </div>
+                    <div class="editor-rate">
+                        <span class="rate">$60</span>
+                        <span class="rate-unit">/hour</span>
+                    </div>
+                    <div class="editor-skills">
+                        <span class="skill-tag">Final Cut Pro</span>
+                        <span class="skill-tag">DaVinci</span>
+                        <span class="skill-tag">Storytelling</span>
+                    </div>
+                    <button class="btn btn-outline btn-small">View Profile</button>
+                </div>
+                
+                <div class="editor-card">
+                    <div class="editor-avatar">
+                        <img src="https://picsum.photos/seed/editor4/100/100.jpg" alt="Editor">
+                        <div class="status-indicator away"></div>
+                    </div>
+                    <h3>Jordan Kim</h3>
+                    <p class="editor-specialty">YouTube Content Creator</p>
+                    <div class="editor-rating">
+                        <div class="stars">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <span>5.0 (203 reviews)</span>
+                    </div>
+                    <div class="editor-rate">
+                        <span class="rate">$85</span>
+                        <span class="rate-unit">/hour</span>
+                    </div>
+                    <div class="editor-skills">
+                        <span class="skill-tag">Premiere Pro</span>
+                        <span class="skill-tag">Color Grading</span>
+                        <span class="skill-tag">Sound Design</span>
+                    </div>
+                    <button class="btn btn-outline btn-small">View Profile</button>
+                </div>
+            </div>
+            
+            <div class="view-all-btn">
+                <button class="btn btn-primary">Browse All Editors</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section id="testimonials" class="testimonials">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Success Stories</h2>
+                <p class="section-subtitle">Hear what our community has to say</p>
+            </div>
+            
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"ClipConnect transformed my YouTube channel. The editor I found was professional, creative, and delivered beyond my expectations."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <img src="https://picsum.photos/seed/client1/50/50.jpg" alt="Client">
+                        <div>
+                            <h4>Emma Thompson</h4>
+                            <p>Content Creator</p>
+                        </div>
+                    </div>
+                    <div class="testimonial-rating">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                </div>
+                
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"As a video editor, ClipConnect gave me access to amazing clients. I've doubled my income and work on projects I love."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <img src="https://picsum.photos/seed/editor5/50/50.jpg" alt="Editor">
+                        <div>
+                            <h4>David Chen</h4>
+                            <p>Video Editor</p>
+                        </div>
+                    </div>
+                    <div class="testimonial-rating">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                </div>
+                
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"The quality of editors on this platform is exceptional. Our marketing videos have never looked better!"</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <img src="https://picsum.photos/seed/client2/50/50.jpg" alt="Client">
+                        <div>
+                            <h4>Michael Roberts</h4>
+                            <p>Marketing Director</p>
+                        </div>
+                    </div>
+                    <div class="testimonial-rating">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="container">
+            <div class="cta-content">
+                <h2>Ready to Start Your Journey?</h2>
+                <p>Join thousands of creators and editors building amazing content together</p>
+                <div class="cta-actions">
+                    <button class="btn btn-primary btn-large" onclick="showRoleSelection('client')">
+                        Post a Project
+                    </button>
+                    <button class="btn btn-secondary btn-large" onclick="showRoleSelection('editor')">
+                        Become an Editor
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">
+                        <i class="fas fa-video"></i>
+                        <span>ClipConnect</span>
+                    </div>
+                    <p>Connecting creators with elite video editors worldwide.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Platform</h4>
+                    <ul>
+                        <li><a href="#">How It Works</a></li>
+                        <li><a href="#">Browse Editors</a></li>
+                        <li><a href="#">Post Project</a></li>
+                        <li><a href="#">Pricing</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Safety</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 ClipConnect. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Auth Modals -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="authContainer"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/animations.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
