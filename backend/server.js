@@ -3,7 +3,10 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const http = require('http');
 require('dotenv').config();
+
+const { initializeSocket } = require('./config/socket');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -13,6 +16,7 @@ const reviewRoutes = require('./routes/reviews');
 const aiRoutes = require('./routes/ai');
 const subscriptionRoutes = require('./routes/subscription');
 const growthRoutes = require('./routes/growth');
+const statsRoutes = require('./routes/stats');
 
 const app = express();
 
@@ -28,7 +32,7 @@ app.use('/api/', limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
   credentials: true
 }));
 
@@ -53,6 +57,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api', growthRoutes); // Growth routes include referral and leaderboard
+app.use('/api/stats', statsRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -74,7 +79,14 @@ app.use('*', (req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
 
+// Create HTTP server and initialize Socket.io
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+// Initialize Socket.io
+initializeSocket(server);
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Socket.io ready for real-time connections`);
 });

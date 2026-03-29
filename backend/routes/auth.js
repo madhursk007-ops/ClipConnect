@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const validator = require('validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const { emitUserJoined } = require('../config/socket');
 
 const router = express.Router();
 
@@ -87,6 +88,12 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
+
+    // Emit socket event for real-time stats update
+    emitUserJoined({
+      name: `${user.profile.firstName} ${user.profile.lastName}`,
+      role: user.role
+    });
 
     // Generate token
     const token = generateToken(user._id);

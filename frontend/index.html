@@ -1,23 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ClipConnect - Connect. Create. Conquer.</title>
-    <meta name="description" content="Premium platform connecting video editors with clients. Find the perfect editor for your next project.">
-    
+    <meta name="description"
+        content="Premium platform connecting video editors with clients. Find the perfect editor for your next project.">
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
     <!-- CSS -->
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
     <link rel="stylesheet" href="css/animations.css">
-    
+
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Socket.io -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="navbar">
@@ -26,19 +35,19 @@
                 <i class="fas fa-video"></i>
                 <span>ClipConnect</span>
             </div>
-            
+
             <ul class="nav-menu">
                 <li><a href="#home" class="nav-link">Home</a></li>
                 <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
                 <li><a href="#editors" class="nav-link">Editors</a></li>
                 <li><a href="#testimonials" class="nav-link">Testimonials</a></li>
             </ul>
-            
+
             <div class="nav-actions">
                 <button class="btn btn-outline" onclick="showLogin()">Login</button>
                 <button class="btn btn-primary" onclick="showSignup()">Get Started</button>
             </div>
-            
+
             <div class="nav-toggle">
                 <span></span>
                 <span></span>
@@ -53,7 +62,7 @@
             <div class="particles"></div>
             <div class="gradient-overlay"></div>
         </div>
-        
+
         <div class="hero-container">
             <div class="hero-content">
                 <h1 class="hero-title">
@@ -62,7 +71,7 @@
                     <span class="gradient-text">Conquer.</span>
                 </h1>
                 <p class="hero-subtitle">
-                    The premium marketplace where visionary content creators meet elite video editors. 
+                    The premium marketplace where visionary content creators meet elite video editors.
                     Transform your ideas into stunning visual stories.
                 </p>
                 <div class="hero-actions">
@@ -75,23 +84,23 @@
                         Join as Editor
                     </button>
                 </div>
-                
+
                 <div class="hero-stats">
                     <div class="stat-item">
-                        <span class="stat-number" data-count="500">0</span>
+                        <span class="stat-number" id="stat-editors" data-count="2847">2,847</span>
                         <span class="stat-label">Expert Editors</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number" data-count="2000">0</span>
+                        <span class="stat-number" id="stat-completed" data-count="15243">15,243</span>
                         <span class="stat-label">Projects Completed</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number" data-count="98">0</span>
+                        <span class="stat-number" data-count="98">98</span>
                         <span class="stat-label">% Satisfaction</span>
                     </div>
                 </div>
             </div>
-            
+
             <div class="hero-visual">
                 <div class="floating-card card-1">
                     <div class="card-avatar">
@@ -109,7 +118,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="floating-card card-2">
                     <div class="project-preview">
                         <img src="https://picsum.photos/seed/project1/300/200.jpg" alt="Project">
@@ -119,7 +128,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="floating-card card-3">
                     <div class="achievement-badge">
                         <i class="fas fa-trophy"></i>
@@ -130,41 +139,166 @@
         </div>
     </section>
 
-    <!-- How It Works Section -->
-    <section id="how-it-works" class="how-it-works">
+    <!-- Live Stats Section -->
+    <section id="stats" class="live-stats">
+        <div class="stats-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+        </div>
         <div class="container">
             <div class="section-header">
-                <h2 class="section-title">How It Works</h2>
-                <p class="section-subtitle">Simple steps to get your project started</p>
+                <span class="section-tag"><i class="fas fa-chart-line"></i> Live Statistics</span>
+                <h2 class="section-title">Platform <span class="gradient-text">Growth</span></h2>
+                <p class="section-subtitle">Real-time data from our thriving community</p>
             </div>
-            
+
+            <div class="stats-grid">
+                <div class="stats-card">
+                    <div class="stats-icon"><i class="fas fa-users"></i></div>
+                    <div class="stats-number" id="stat-total-users">0</div>
+                    <div class="stats-label">Total Users</div>
+                    <div class="live-indicator">
+                        <span class="pulse"></span>
+                        <span>LIVE</span>
+                    </div>
+                </div>
+
+                <div class="stats-card featured">
+                    <div class="stats-icon"><i class="fas fa-video"></i></div>
+                    <div class="stats-number" id="stat-editors-main">0</div>
+                    <div class="stats-label">Video Editors</div>
+                    <div class="live-indicator">
+                        <span class="pulse"></span>
+                        <span>LIVE</span>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <div class="stats-icon"><i class="fas fa-briefcase"></i></div>
+                    <div class="stats-number" id="stat-clients">0</div>
+                    <div class="stats-label">Clients</div>
+                    <div class="live-indicator">
+                        <span class="pulse"></span>
+                        <span>LIVE</span>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <div class="stats-icon"><i class="fas fa-folder-open"></i></div>
+                    <div class="stats-number" id="stat-projects">0</div>
+                    <div class="stats-label">Total Projects</div>
+                    <div class="live-indicator">
+                        <span class="pulse"></span>
+                        <span>LIVE</span>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <div class="stats-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stats-number" id="stat-completed-main">0</div>
+                    <div class="stats-label">Completed</div>
+                    <div class="live-indicator">
+                        <span class="pulse"></span>
+                        <span>LIVE</span>
+                    </div>
+                </div>
+            </div>
+
+            <p class="stats-note"><i class="fas fa-sync-alt"></i> Updates automatically every 10 seconds</p>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="how-it-works-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+        </div>
+
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">HOW IT WORKS</span>
+                <h2 class="section-title">Your Journey to <span class="gradient-text">Exceptional Content</span></h2>
+                <p class="section-subtitle">A streamlined process designed for professionals who demand excellence</p>
+            </div>
+
             <div class="steps-container">
-                <div class="step-item">
-                    <div class="step-number">1</div>
-                    <div class="step-icon">
-                        <i class="fas fa-user-plus"></i>
+                <div class="step-card">
+                    <div class="step-glow"></div>
+                    <div class="step-content">
+                        <div class="step-icon-wrapper">
+                            <div class="step-icon">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+                            <div class="step-number">01</div>
+                        </div>
+                        <h3>Create Your Profile</h3>
+                        <p>Sign up as a client or editor. Build your professional profile showcasing your expertise and
+                            portfolio.</p>
+                        <ul class="step-features">
+                            <li><i class="fas fa-check"></i> Free registration</li>
+                            <li><i class="fas fa-check"></i> Instant verification</li>
+                            <li><i class="fas fa-check"></i> Secure platform</li>
+                        </ul>
                     </div>
-                    <h3>Sign Up</h3>
-                    <p>Create your account as a client or editor in seconds</p>
-                </div>
-                
-                <div class="step-item">
-                    <div class="step-number">2</div>
-                    <div class="step-icon">
-                        <i class="fas fa-search"></i>
+                    <div class="step-connector">
+                        <div class="connector-line"></div>
+                        <div class="connector-arrow"><i class="fas fa-arrow-right"></i></div>
                     </div>
-                    <h3>Find Match</h3>
-                    <p>Browse talented editors or post your project requirements</p>
                 </div>
-                
-                <div class="step-item">
-                    <div class="step-number">3</div>
-                    <div class="step-icon">
-                        <i class="fas fa-handshake"></i>
+
+                <div class="step-card featured">
+                    <div class="step-glow"></div>
+                    <div class="step-badge">MOST POPULAR</div>
+                    <div class="step-content">
+                        <div class="step-icon-wrapper">
+                            <div class="step-icon">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <div class="step-number">02</div>
+                        </div>
+                        <h3>Find Your Match</h3>
+                        <p>Browse verified editors or post projects. Our AI matching ensures perfect skill alignment.
+                        </p>
+                        <ul class="step-features">
+                            <li><i class="fas fa-check"></i> AI-powered matching</li>
+                            <li><i class="fas fa-check"></i> Portfolio previews</li>
+                            <li><i class="fas fa-check"></i> Direct messaging</li>
+                        </ul>
                     </div>
-                    <h3>Collaborate</h3>
-                    <p>Work together seamlessly with our messaging system</p>
+                    <div class="step-connector">
+                        <div class="connector-line"></div>
+                        <div class="connector-arrow"><i class="fas fa-arrow-right"></i></div>
+                    </div>
                 </div>
+
+                <div class="step-card">
+                    <div class="step-glow"></div>
+                    <div class="step-content">
+                        <div class="step-icon-wrapper">
+                            <div class="step-icon">
+                                <i class="fas fa-rocket"></i>
+                            </div>
+                            <div class="step-number">03</div>
+                        </div>
+                        <h3>Create & Deliver</h3>
+                        <p>Collaborate seamlessly, track progress, and receive payment securely through our platform.
+                        </p>
+                        <ul class="step-features">
+                            <li><i class="fas fa-check"></i> Secure payments</li>
+                            <li><i class="fas fa-check"></i> Version control</li>
+                            <li><i class="fas fa-check"></i> Quality guarantee</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="steps-cta">
+                <button class="btn btn-primary btn-large" onclick="showRoleSelection('client')">
+                    <i class="fas fa-play"></i>
+                    Start Your Journey
+                </button>
+                <p class="steps-cta-note">Join 15,000+ creators already on the platform</p>
             </div>
         </div>
     </section>
@@ -176,7 +310,7 @@
                 <h2 class="section-title">Featured Editors</h2>
                 <p class="section-subtitle">Meet our top-rated video editing professionals</p>
             </div>
-            
+
             <div class="editors-carousel">
                 <div class="editor-card">
                     <div class="editor-avatar">
@@ -206,7 +340,7 @@
                     </div>
                     <button class="btn btn-outline btn-small">View Profile</button>
                 </div>
-                
+
                 <div class="editor-card">
                     <div class="editor-avatar">
                         <img src="https://picsum.photos/seed/editor3/100/100.jpg" alt="Editor">
@@ -235,7 +369,7 @@
                     </div>
                     <button class="btn btn-outline btn-small">View Profile</button>
                 </div>
-                
+
                 <div class="editor-card">
                     <div class="editor-avatar">
                         <img src="https://picsum.photos/seed/editor4/100/100.jpg" alt="Editor">
@@ -265,7 +399,7 @@
                     <button class="btn btn-outline btn-small">View Profile</button>
                 </div>
             </div>
-            
+
             <div class="view-all-btn">
                 <button class="btn btn-primary">Browse All Editors</button>
             </div>
@@ -279,11 +413,12 @@
                 <h2 class="section-title">Success Stories</h2>
                 <p class="section-subtitle">Hear what our community has to say</p>
             </div>
-            
+
             <div class="testimonials-grid">
                 <div class="testimonial-card">
                     <div class="testimonial-content">
-                        <p>"ClipConnect transformed my YouTube channel. The editor I found was professional, creative, and delivered beyond my expectations."</p>
+                        <p>"ClipConnect transformed my YouTube channel. The editor I found was professional, creative,
+                            and delivered beyond my expectations."</p>
                     </div>
                     <div class="testimonial-author">
                         <img src="https://picsum.photos/seed/client1/50/50.jpg" alt="Client">
@@ -300,10 +435,11 @@
                         <i class="fas fa-star"></i>
                     </div>
                 </div>
-                
+
                 <div class="testimonial-card">
                     <div class="testimonial-content">
-                        <p>"As a video editor, ClipConnect gave me access to amazing clients. I've doubled my income and work on projects I love."</p>
+                        <p>"As a video editor, ClipConnect gave me access to amazing clients. I've doubled my income and
+                            work on projects I love."</p>
                     </div>
                     <div class="testimonial-author">
                         <img src="https://picsum.photos/seed/editor5/50/50.jpg" alt="Editor">
@@ -320,10 +456,11 @@
                         <i class="fas fa-star"></i>
                     </div>
                 </div>
-                
+
                 <div class="testimonial-card">
                     <div class="testimonial-content">
-                        <p>"The quality of editors on this platform is exceptional. Our marketing videos have never looked better!"</p>
+                        <p>"The quality of editors on this platform is exceptional. Our marketing videos have never
+                            looked better!"</p>
                     </div>
                     <div class="testimonial-author">
                         <img src="https://picsum.photos/seed/client2/50/50.jpg" alt="Client">
@@ -379,7 +516,7 @@
                         <a href="#"><i class="fab fa-youtube"></i></a>
                     </div>
                 </div>
-                
+
                 <div class="footer-section">
                     <h4>Platform</h4>
                     <ul>
@@ -389,7 +526,7 @@
                         <li><a href="#">Pricing</a></li>
                     </ul>
                 </div>
-                
+
                 <div class="footer-section">
                     <h4>Company</h4>
                     <ul>
@@ -399,7 +536,7 @@
                         <li><a href="#">Contact</a></li>
                     </ul>
                 </div>
-                
+
                 <div class="footer-section">
                     <h4>Support</h4>
                     <ul>
@@ -410,7 +547,7 @@
                     </ul>
                 </div>
             </div>
-            
+
             <div class="footer-bottom">
                 <p>&copy; 2024 ClipConnect. All rights reserved.</p>
             </div>
@@ -427,7 +564,10 @@
 
     <!-- Scripts -->
     <script src="js/animations.js"></script>
+    <script src="js/realtime.js"></script>
+    <script src="js/stats.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/main.js"></script>
 </body>
+
 </html>

@@ -322,6 +322,7 @@ const rateLimits = {
 
 module.exports = {
   authenticate,
+  protect: authenticate, // Alias for compatibility
   authorize,
   optionalAuth,
   checkOwnership,

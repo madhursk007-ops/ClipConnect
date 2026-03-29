@@ -1,6 +1,7 @@
 const express = require('express');
 const Project = require('../models/Project');
 const { auth, authorize } = require('../middleware/auth');
+const { emitProjectCreated, emitProjectCompleted } = require('../config/socket');
 
 const router = express.Router();
 
@@ -144,6 +145,12 @@ router.post('/', auth, authorize('client'), async (req, res) => {
     // Update client's posted projects count
     req.user.clientProfile.postedProjects += 1;
     await req.user.save();
+
+    // Emit socket event for real-time stats update
+    emitProjectCreated({
+      title: project.title,
+      id: project._id
+    });
 
     const populatedProject = await Project.findById(project._id)
       .populate('client', 'username profile.firstName profile.lastName profile.avatar');
@@ -356,6 +363,13 @@ router.put('/:id/proposals/:proposalId/accept', auth, authorize('client'), async
     });
 
     await project.save();
+
+    // Emit socket event when project starts (proposal accepted)
+    emitProjectCompleted({
+      title: project.title,
+      id: project._id,
+      status: 'in-progress'
+    });
 
     const updatedProject = await Project.findById(req.params.id)
       .populate('client', 'username profile.firstName profile.lastName profile.avatar')
