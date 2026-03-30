@@ -1,5 +1,5 @@
-const User = require('../models/User');
-const Project = require('../models/Project');
+const { prisma } = require('../config/database');
+const logger = require('../utils/logger');
 
 // @desc    Get platform statistics
 // @route   GET /api/stats
@@ -13,31 +13,33 @@ const getStats = async (req, res) => {
       clients,
       totalProjects,
       completedProjects,
-      activeProjects,
-      pendingProjects
+      inProgressProjects,
+      openProjects
     ] = await Promise.all([
-      User.countDocuments(),
-      User.countDocuments({ role: 'editor' }),
-      User.countDocuments({ role: 'client' }),
-      Project.countDocuments(),
-      Project.countDocuments({ status: 'completed' }),
-      Project.countDocuments({ status: 'active' }),
-      Project.countDocuments({ status: 'pending' })
+      prisma.user.count(),
+      prisma.user.count({ where: { role: 'EDITOR' } }),
+      prisma.user.count({ where: { role: 'CLIENT' } }),
+      prisma.project.count(),
+      prisma.project.count({ where: { status: 'COMPLETED' } }),
+      prisma.project.count({ where: { status: 'IN_PROGRESS' } }),
+      prisma.project.count({ where: { status: 'OPEN' } })
     ]);
 
     // Get recent activity (last 24 hours)
     const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    
+
     const [
       newUsersToday,
       newProjectsToday,
       projectsCompletedToday
     ] = await Promise.all([
-      User.countDocuments({ createdAt: { $gte: last24Hours } }),
-      Project.countDocuments({ createdAt: { $gte: last24Hours } }),
-      Project.countDocuments({ 
-        status: 'completed', 
-        updatedAt: { $gte: last24Hours } 
+      prisma.user.count({ where: { createdAt: { gte: last24Hours } } }),
+      prisma.project.count({ where: { createdAt: { gte: last24Hours } } }),
+      prisma.project.count({
+        where: {
+          status: 'COMPLETED',
+          updatedAt: { gte: last24Hours }
+        }
       })
     ]);
 
@@ -49,8 +51,8 @@ const getStats = async (req, res) => {
         clients,
         totalProjects,
         completedProjects,
-        activeProjects,
-        pendingProjects,
+        activeProjects: inProgressProjects,
+        pendingProjects: openProjects,
         recentActivity: {
           newUsersToday,
           newProjectsToday,
@@ -59,7 +61,7 @@ const getStats = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Stats error:', error);
+    logger.error('Stats error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch statistics',
@@ -73,43 +75,40 @@ const getStats = async (req, res) => {
 // @access  Private
 const getDashboardStats = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
     const userRole = req.user.role;
 
     let stats = {};
 
-    if (userRole === 'editor') {
+    if (userRole === 'EDITOR') {
       // Editor-specific stats
       const [
         totalApplications,
         activeProjects,
         completedProjects,
-        totalEarnings
+        totalEarningsAgg
       ] = await Promise.all([
-        Project.countDocuments({ 'applications.editor': userId }),
-        Project.countDocuments({ 
-          assignedEditor: userId, 
-          status: 'active' 
+        prisma.proposal.count({ where: { editorId: userId } }),
+        prisma.project.count({
+          where: {
+            editorId: userId,
+            status: 'IN_PROGRESS'
+          }
         }),
-        Project.countDocuments({ 
-          assignedEditor: userId, 
-          status: 'completed' 
+        prisma.project.count({
+          where: {
+            editorId: userId,
+            status: 'COMPLETED'
+          }
         }),
         // Calculate total earnings from completed projects
-        Project.aggregate([
-          {
-            $match: {
-              assignedEditor: userId,
-              status: 'completed'
-            }
+        prisma.project.aggregate({
+          where: {
+            editorId: userId,
+            status: 'COMPLETED'
           },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: '$budget' }
-            }
-          }
-        ])
+          _sum: { budget: true }
+        })
       ]);
 
       stats = {
@@ -117,9 +116,9 @@ const getDashboardStats = async (req, res) => {
         totalApplications,
         activeProjects,
         completedProjects,
-        totalEarnings: totalEarnings[0]?.total || 0,
-        rating: req.user.rating || 0,
-        reviewCount: req.user.reviewCount || 0
+        totalEarnings: totalEarningsAgg._sum.budget || 0,
+        rating: req.user.ratingAverage || 0,
+        reviewCount: req.user.ratingCount || 0
       };
     } else {
       // Client-specific stats
@@ -127,31 +126,28 @@ const getDashboardStats = async (req, res) => {
         postedProjects,
         activeProjects,
         completedProjects,
-        totalSpent
+        totalSpentAgg
       ] = await Promise.all([
-        Project.countDocuments({ client: userId }),
-        Project.countDocuments({ 
-          client: userId, 
-          status: 'active' 
-        }),
-        Project.countDocuments({ 
-          client: userId, 
-          status: 'completed' 
-        }),
-        Project.aggregate([
-          {
-            $match: {
-              client: userId,
-              status: 'completed'
-            }
-          },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: '$budget' }
-            }
+        prisma.project.count({ where: { clientId: userId } }),
+        prisma.project.count({
+          where: {
+            clientId: userId,
+            status: 'IN_PROGRESS'
           }
-        ])
+        }),
+        prisma.project.count({
+          where: {
+            clientId: userId,
+            status: 'COMPLETED'
+          }
+        }),
+        prisma.project.aggregate({
+          where: {
+            clientId: userId,
+            status: 'COMPLETED'
+          },
+          _sum: { budget: true }
+        })
       ]);
 
       stats = {
@@ -159,7 +155,7 @@ const getDashboardStats = async (req, res) => {
         postedProjects,
         activeProjects,
         completedProjects,
-        totalSpent: totalSpent[0]?.total || 0
+        totalSpent: totalSpentAgg._sum.budget || 0
       };
     }
 
@@ -168,7 +164,7 @@ const getDashboardStats = async (req, res) => {
       data: stats
     });
   } catch (error) {
-    console.error('Dashboard stats error:', error);
+    logger.error('Dashboard stats error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch dashboard statistics',
@@ -186,9 +182,9 @@ const getRealtimeStats = async () => {
       totalProjects,
       completedProjects
     ] = await Promise.all([
-      User.countDocuments(),
-      Project.countDocuments(),
-      Project.countDocuments({ status: 'completed' })
+      prisma.user.count(),
+      prisma.project.count(),
+      prisma.project.count({ where: { status: 'COMPLETED' } })
     ]);
 
     return {
@@ -197,7 +193,7 @@ const getRealtimeStats = async () => {
       completedProjects
     };
   } catch (error) {
-    console.error('Realtime stats error:', error);
+    logger.error('Realtime stats error:', error);
     return null;
   }
 };

@@ -1,128 +1,95 @@
 const express = require('express');
-const Message = require('../models/Message');
-const { auth } = require('../middleware/auth');
+const { prisma } = require('../config/database');
+const { protect } = require('../middlewares/auth');
+const { emitNewMessage } = require('../config/socket');
 
 const router = express.Router();
 
 // @route   GET /api/messages
 // @desc    Get all conversations for current user
 // @access  Private
-router.get('/', auth, async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
 
-    // Get conversations where user is either sender or recipient
-    const conversations = await Message.aggregate([
-      {
-        $match: {
-          $or: [
-            { sender: req.user._id },
-            { recipient: req.user._id }
-          ],
-          isDeleted: false
-        }
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $group: {
-          _id: {
-            $cond: {
-              if: { $eq: ['$sender', req.user._id] },
-              then: '$recipient',
-              else: '$sender'
-            }
-          },
-          lastMessage: { $first: '$$ROOT' },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ['$recipient', req.user._id] },
-                    { $eq: ['$isRead', false] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'otherUser'
-        }
-      },
-      {
-        $unwind: '$otherUser'
-      },
-      {
-        $project: {
-          otherUser: {
-            _id: 1,
-            username: 1,
-            'profile.firstName': 1,
-            'profile.lastName': 1,
-            'profile.avatar': 1,
-            role: 1
-          },
-          lastMessage: 1,
-          unreadCount: 1
-        }
-      },
-      {
-        $sort: { 'lastMessage.createdAt': -1 }
-      },
-      {
-        $skip: skip
-      },
-      {
-        $limit: parseInt(limit)
-      }
-    ]);
+    // Get all messages where user is sender or recipient
+    const userId = req.user.id;
 
-    const total = await Message.aggregate([
-      {
-        $match: {
-          $or: [
-            { sender: req.user._id },
-            { recipient: req.user._id }
-          ],
-          isDeleted: false
-        }
+    // Get distinct conversation partners
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId },
+          { recipientId: userId }
+        ],
+        isDeleted: false
       },
-      {
-        $group: {
-          _id: {
-            $cond: {
-              if: { $eq: ['$sender', req.user._id] },
-              then: '$recipient',
-              else: '$sender'
-            }
+      orderBy: { createdAt: 'desc' },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            role: true
+          }
+        },
+        recipient: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            role: true
           }
         }
-      },
-      {
-        $count: 'total'
       }
-    ]);
+    });
+
+    // Group by conversation partner
+    const conversationsMap = new Map();
+
+    for (const message of messages) {
+      const partnerId = message.senderId === userId ? message.recipientId : message.senderId;
+      const partner = message.senderId === userId ? message.recipient : message.sender;
+
+      if (!conversationsMap.has(partnerId)) {
+        conversationsMap.set(partnerId, {
+          otherUser: partner,
+          lastMessage: message,
+          unreadCount: 0
+        });
+      }
+
+      // Count unread messages (where current user is recipient and message is unread)
+      if (message.recipientId === userId && !message.isRead) {
+        const conv = conversationsMap.get(partnerId);
+        conv.unreadCount++;
+      }
+    }
+
+    const conversations = Array.from(conversationsMap.values());
+
+    // Sort by last message date
+    conversations.sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
+
+    // Paginate
+    const total = conversations.length;
+    const paginatedConversations = conversations.slice(parseInt(skip), parseInt(skip) + parseInt(limit));
 
     res.status(200).json({
       success: true,
       data: {
-        conversations,
+        conversations: paginatedConversations,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: total[0]?.total || 0,
-          pages: Math.ceil((total[0]?.total || 0) / limit)
+          total,
+          pages: Math.ceil(total / limit)
         }
       }
     });
@@ -138,45 +105,74 @@ router.get('/', auth, async (req, res) => {
 // @route   GET /api/messages/:userId
 // @desc    Get conversation with specific user
 // @access  Private
-router.get('/:userId', auth, async (req, res) => {
+router.get('/:userId', protect, async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
     const skip = (page - 1) * limit;
+    const currentUserId = req.user.id;
+    const otherUserId = req.params.userId;
 
-    // Mark messages as read
-    await Message.updateMany(
-      {
-        sender: req.params.userId,
-        recipient: req.user._id,
+    // Mark messages as read (from the other user to current user)
+    await prisma.message.updateMany({
+      where: {
+        senderId: otherUserId,
+        recipientId: currentUserId,
         isRead: false,
         isDeleted: false
       },
-      {
+      data: {
         isRead: true,
         readAt: new Date()
       }
-    );
+    });
 
-    const messages = await Message.find({
-      $or: [
-        { sender: req.user._id, recipient: req.params.userId },
-        { sender: req.params.userId, recipient: req.user._id }
-      ],
-      isDeleted: false
-    })
-      .populate('sender', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('recipient', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('project', 'title')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: currentUserId, recipientId: otherUserId },
+          { senderId: otherUserId, recipientId: currentUserId }
+        ],
+        isDeleted: false
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        recipient: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: parseInt(skip),
+      take: parseInt(limit)
+    });
 
-    const total = await Message.countDocuments({
-      $or: [
-        { sender: req.user._id, recipient: req.params.userId },
-        { sender: req.params.userId, recipient: req.user._id }
-      ],
-      isDeleted: false
+    const total = await prisma.message.count({
+      where: {
+        OR: [
+          { senderId: currentUserId, recipientId: otherUserId },
+          { senderId: otherUserId, recipientId: currentUserId }
+        ],
+        isDeleted: false
+      }
     });
 
     res.status(200).json({
@@ -203,11 +199,11 @@ router.get('/:userId', auth, async (req, res) => {
 // @route   POST /api/messages
 // @desc    Send a message
 // @access  Private
-router.post('/', auth, async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
-    const { recipient, content, project, type = 'text', attachments } = req.body;
+    const { recipientId, content, projectId, type = 'TEXT', attachments } = req.body;
 
-    if (!recipient || !content) {
+    if (!recipientId || !content) {
       return res.status(400).json({
         success: false,
         message: 'Recipient and content are required'
@@ -215,9 +211,10 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Check if recipient exists
-    const User = require('../models/User');
-    const recipientUser = await User.findById(recipient);
-    
+    const recipientUser = await prisma.user.findUnique({
+      where: { id: recipientId }
+    });
+
     if (!recipientUser || !recipientUser.isActive) {
       return res.status(404).json({
         success: false,
@@ -225,28 +222,60 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    const message = new Message({
-      sender: req.user._id,
-      recipient,
-      content,
-      project,
-      type,
-      attachments: attachments || []
+    // Create message
+    const message = await prisma.message.create({
+      data: {
+        senderId: req.user.id,
+        recipientId,
+        projectId,
+        content,
+        type: type.toUpperCase(),
+        attachments: attachments || []
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        recipient: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      }
     });
 
-    await message.save();
+    // Update sender's messages sent count
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { messagesSent: { increment: 1 } }
+    });
 
-    const populatedMessage = await Message.findById(message._id)
-      .populate('sender', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('recipient', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('project', 'title');
+    // Emit socket event for real-time messaging
+    emitNewMessage({
+      message,
+      recipientId
+    });
 
     res.status(201).json({
       success: true,
       message: 'Message sent successfully',
-      data: {
-        message: populatedMessage
-      }
+      data: { message }
     });
   } catch (error) {
     console.error('Send message error:', error);
@@ -260,7 +289,7 @@ router.post('/', auth, async (req, res) => {
 // @route   PUT /api/messages/:id
 // @desc    Update a message
 // @access  Private
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', protect, async (req, res) => {
   try {
     const { content } = req.body;
 
@@ -271,7 +300,9 @@ router.put('/:id', auth, async (req, res) => {
       });
     }
 
-    const message = await Message.findById(req.params.id);
+    const message = await prisma.message.findUnique({
+      where: { id: req.params.id }
+    });
 
     if (!message) {
       return res.status(404).json({
@@ -281,7 +312,7 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     // Check if user is the sender
-    if (message.sender.toString() !== req.user._id.toString()) {
+    if (message.senderId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'You can only edit your own messages'
@@ -289,7 +320,7 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     // Check if message is too old to edit (24 hours)
-    const hoursSinceCreation = (Date.now() - message.createdAt) / (1000 * 60 * 60);
+    const hoursSinceCreation = (Date.now() - new Date(message.createdAt)) / (1000 * 60 * 60);
     if (hoursSinceCreation > 24) {
       return res.status(400).json({
         success: false,
@@ -297,20 +328,45 @@ router.put('/:id', auth, async (req, res) => {
       });
     }
 
-    message.content = content;
-    await message.save();
-
-    const updatedMessage = await Message.findById(req.params.id)
-      .populate('sender', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('recipient', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('project', 'title');
+    const updatedMessage = await prisma.message.update({
+      where: { id: req.params.id },
+      data: {
+        content,
+        isEdited: true,
+        editedAt: new Date()
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        recipient: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      }
+    });
 
     res.status(200).json({
       success: true,
       message: 'Message updated successfully',
-      data: {
-        message: updatedMessage
-      }
+      data: { message: updatedMessage }
     });
   } catch (error) {
     console.error('Update message error:', error);
@@ -322,11 +378,13 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // @route   DELETE /api/messages/:id
-// @desc    Delete a message
+// @desc    Delete a message (soft delete)
 // @access  Private
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', protect, async (req, res) => {
   try {
-    const message = await Message.findById(req.params.id);
+    const message = await prisma.message.findUnique({
+      where: { id: req.params.id }
+    });
 
     if (!message) {
       return res.status(404).json({
@@ -336,17 +394,20 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     // Check if user is the sender or recipient
-    if (message.sender.toString() !== req.user._id.toString() && 
-        message.recipient.toString() !== req.user._id.toString()) {
+    if (message.senderId !== req.user.id && message.recipientId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'You can only delete your own messages'
       });
     }
 
-    message.isDeleted = true;
-    message.deletedAt = new Date();
-    await message.save();
+    await prisma.message.update({
+      where: { id: req.params.id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date()
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -364,19 +425,19 @@ router.delete('/:id', auth, async (req, res) => {
 // @route   GET /api/messages/unread/count
 // @desc    Get unread message count
 // @access  Private
-router.get('/unread/count', auth, async (req, res) => {
+router.get('/unread/count', protect, async (req, res) => {
   try {
-    const unreadCount = await Message.countDocuments({
-      recipient: req.user._id,
-      isRead: false,
-      isDeleted: false
+    const unreadCount = await prisma.message.count({
+      where: {
+        recipientId: req.user.id,
+        isRead: false,
+        isDeleted: false
+      }
     });
 
     res.status(200).json({
       success: true,
-      data: {
-        unreadCount
-      }
+      data: { unreadCount }
     });
   } catch (error) {
     console.error('Get unread count error:', error);
@@ -390,24 +451,46 @@ router.get('/unread/count', auth, async (req, res) => {
 // @route   GET /api/messages/project/:projectId
 // @desc    Get messages for a specific project
 // @access  Private
-router.get('/project/:projectId', auth, async (req, res) => {
+router.get('/project/:projectId', protect, async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
     const skip = (page - 1) * limit;
 
-    const messages = await Message.find({
-      project: req.params.projectId,
-      isDeleted: false
-    })
-      .populate('sender', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('recipient', 'username profile.firstName profile.lastName profile.avatar')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const messages = await prisma.message.findMany({
+      where: {
+        projectId: req.params.projectId,
+        isDeleted: false
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        recipient: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: parseInt(skip),
+      take: parseInt(limit)
+    });
 
-    const total = await Message.countDocuments({
-      project: req.params.projectId,
-      isDeleted: false
+    const total = await prisma.message.count({
+      where: {
+        projectId: req.params.projectId,
+        isDeleted: false
+      }
     });
 
     res.status(200).json({

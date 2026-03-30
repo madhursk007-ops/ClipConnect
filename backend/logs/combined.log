@@ -1,0 +1,216 @@
+{
+  service: 'clipconnect-api',
+  level: 'error',
+  message: 'Realtime stats error: Operation `users.countDocuments()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `users.countDocuments()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:187:23)\n' +
+    '    at listOnTimeout (node:internal/timers:605:17)\n' +
+    '    at process.processTimers (node:internal/timers:541:7)',
+  timestamp: '2026-03-29 10:57:31'
+}
+{
+  service: 'clipconnect-api',
+  level: 'error',
+  message: 'Realtime stats error: Operation `users.countDocuments()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `users.countDocuments()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:187:23)\n' +
+    '    at listOnTimeout (node:internal/timers:605:17)\n' +
+    '    at process.processTimers (node:internal/timers:541:7)',
+  timestamp: '2026-03-29 10:58:43'
+}
+{
+  service: 'clipconnect-api',
+  level: 'error',
+  message: 'Realtime stats error: Operation `users.countDocuments()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `users.countDocuments()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:187:23)\n' +
+    '    at listOnTimeout (node:internal/timers:605:17)\n' +
+    '    at process.processTimers (node:internal/timers:541:7)',
+  timestamp: '2026-03-29 10:59:51'
+}
+{
+  service: 'clipconnect-api',
+  level: 'error',
+  message: 'Realtime stats error: Operation `users.countDocuments()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `users.countDocuments()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:187:23)\n' +
+    '    at listOnTimeout (node:internal/timers:605:17)\n' +
+    '    at process.processTimers (node:internal/timers:541:7)',
+  timestamp: '2026-03-29 11:00:46'
+}
+{
+  service: 'clipconnect-api',
+  level: 'error',
+  message: 'Realtime stats error: Operation `users.countDocuments()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `users.countDocuments()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:187:23)\n' +
+    '    at listOnTimeout (node:internal/timers:605:17)\n' +
+    '    at process.processTimers (node:internal/timers:541:7)',
+  timestamp: '2026-03-29 11:01:13'
+}
+{
+  service: 'clipconnect-api',
+  level: 'error',
+  message: 'Realtime stats error: Operation `users.countDocuments()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `users.countDocuments()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:187:23)\n' +
+    '    at listOnTimeout (node:internal/timers:605:17)\n' +
+    '    at process.processTimers (node:internal/timers:541:7)',
+  timestamp: '2026-03-29 11:02:57'
+}
+{
+  service: 'clipconnect-api',
+  level: 'error',
+  message: 'Realtime stats error: Operation `users.countDocuments()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `users.countDocuments()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:187:23)\n' +
+    '    at listOnTimeout (node:internal/timers:605:17)\n' +
+    '    at process.processTimers (node:internal/timers:541:7)',
+  timestamp: '2026-03-29 11:03:55'
+}
+{
+  service: 'clipconnect-api',
+  level: 'error',
+  message: 'Realtime stats error: Operation `users.countDocuments()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `users.countDocuments()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:187:23)\n' +
+    '    at listOnTimeout (node:internal/timers:605:17)\n' +
+    '    at process.processTimers (node:internal/timers:541:7)',
+  timestamp: '2026-03-29 11:04:34'
+}
+{
+  service: 'clipconnect-api',
+  name: 'PrismaClientInitializationError',
+  clientVersion: '5.7.0',
+  errorCode: 'P1000',
+  level: 'error',
+  message: 'Database connection failed: Authentication failed against database server at `localhost`, the provided database credentials for `postgres` are not valid.\n' +
+    '\n' +
+    'Please make sure to provide valid database credentials for the database server at `localhost`.',
+  stack: 'PrismaClientInitializationError: Authentication failed against database server at `localhost`, the provided database credentials for `postgres` are not valid.\n' +
+    '\n' +
+    'Please make sure to provide valid database credentials for the database server at `localhost`.\n' +
+    '    at r (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:116:2752)\n' +
+    '    at async connectDB (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\config\\database.js:15:5)',
+  timestamp: '2026-03-30 15:27:20'
+}
+{
+  service: 'clipconnect-api',
+  name: 'PrismaClientInitializationError',
+  clientVersion: '5.7.0',
+  errorCode: 'P1003',
+  level: 'error',
+  message: 'Database connection failed: Database `clipconnect` does not exist on the database server at `localhost:5432`.',
+  stack: 'PrismaClientInitializationError: Database `clipconnect` does not exist on the database server at `localhost:5432`.\n' +
+    '    at r (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:116:2752)\n' +
+    '    at async connectDB (C:\\Users\\madhu\\OneDrive\\Desktop\\ClipConnect\\backend\\config\\database.js:15:5)',
+  timestamp: '2026-03-30 19:41:27'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 20:01:08'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 20:03:32'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 20:04:32'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 20:12:01'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 20:13:17'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 20:13:51'
+}
+{
+  message: 'PostgreSQL connection closed through app termination',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 20:14:10'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 20:14:30'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 20:16:40'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 21:09:42'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 21:11:23'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 21:14:12'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 21:14:51'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 21:16:11'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 21:19:07'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 21:19:32'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 21:21:54'
+}
+{
+  message: 'PostgreSQL Connected successfully',
+  level: 'info',
+  service: 'clipconnect-api',
+  timestamp: '2026-03-30 21:22:03'
+}

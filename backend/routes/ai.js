@@ -1,8 +1,8 @@
 const express = require('express');
-const router = express.Router();
+const { prisma } = require('../config/database');
 const { protect } = require('../middlewares/auth');
-const User = require('../models/User');
-const Project = require('../models/Project');
+
+const router = express.Router();
 
 // @route   POST /api/ai/match-editors
 // @desc    AI-powered editor matching for a project
@@ -10,9 +10,17 @@ const Project = require('../models/Project');
 router.post('/match-editors', protect, async (req, res) => {
   try {
     const { projectId } = req.body;
-    
+
     // Get project details
-    const project = await Project.findById(projectId);
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        client: {
+          select: { id: true, firstName: true, lastName: true }
+        }
+      }
+    });
+
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -21,10 +29,30 @@ router.post('/match-editors', protect, async (req, res) => {
     }
 
     // Get all active editors
-    const editors = await User.find({
-      role: 'editor',
-      isActive: true
-    }).select('firstName lastName email skills hourlyRate rating completedProjects availability portfolio bio');
+    const editors = await prisma.user.findMany({
+      where: {
+        role: 'EDITOR',
+        isActive: true,
+        availability: true
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        skills: true,
+        hourlyRate: true,
+        ratingAverage: true,
+        ratingCount: true,
+        completedProjects: true,
+        availability: true,
+        bio: true,
+        portfolioItems: {
+          take: 3,
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
 
     // AI Matching Algorithm
     const matchedEditors = editors.map(editor => {
@@ -206,7 +234,7 @@ router.post('/improve-description', protect, async (req, res) => {
     };
 
     const template = templates[projectType] || templates.general;
-    
+
     // Generate improved description
     const improvedDescription = `${template.intro} video project. 
 
@@ -272,7 +300,7 @@ router.post('/analyze-portfolio', protect, async (req, res) => {
     // Simulate AI Analysis
     const analysis = {
       overallScore: Math.min(95, 60 + (portfolioItems.length * 5)),
-      
+
       quality: {
         score: Math.min(95, 70 + Math.random() * 20),
         feedback: 'High-quality video production with excellent color grading and editing techniques. Visual composition is strong.',
@@ -282,19 +310,19 @@ router.post('/analyze-portfolio', protect, async (req, res) => {
           'Professional audio quality'
         ]
       },
-      
+
       diversity: {
         score: Math.min(90, 60 + (portfolioItems.length * 3)),
         feedback: 'Good variety of projects showing versatility across different styles and industries.',
         projectTypes: portfolioItems.map(item => item.category || 'General')
       },
-      
+
       technical: {
         score: Math.min(95, 75 + Math.random() * 15),
         feedback: 'Strong technical skills demonstrated in editing, transitions, and audio mixing.',
         toolsUsed: ['Adobe Premiere Pro', 'After Effects', 'DaVinci Resolve']
       },
-      
+
       presentation: {
         score: Math.min(85, 70 + Math.random() * 10),
         feedback: 'Portfolio is well-organized but could benefit from better project descriptions and context.',

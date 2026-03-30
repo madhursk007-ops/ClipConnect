@@ -1,32 +1,32 @@
-const mongoose = require('mongoose');
+const { PrismaClient } = require('@prisma/client');
 const logger = require('../utils/logger');
 
+// Create Prisma Client instance with logging in development
+const prisma = new PrismaClient({
+  log: process.env.NODE_ENV === 'development'
+    ? ['query', 'info', 'warn', 'error']
+    : ['error'],
+});
+
+// Connection management
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      maxPoolSize: 10, // Maintain up to 10 socket connections
-      serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-      family: 4, // Use IPv4, skip trying IPv6
-    });
+    // Test the connection by running a simple query
+    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`;
 
-    logger.info(`MongoDB Connected: ${conn.connection.host}`);
+    logger.info('PostgreSQL Connected successfully');
 
-    // Handle connection events
-    mongoose.connection.on('error', (err) => {
-      logger.error('MongoDB connection error:', err);
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      logger.warn('MongoDB disconnected');
-    });
-
-    // Graceful shutdown
+    // Handle graceful shutdown
     process.on('SIGINT', async () => {
-      await mongoose.connection.close();
-      logger.info('MongoDB connection closed through app termination');
+      await prisma.$disconnect();
+      logger.info('PostgreSQL connection closed through app termination');
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', async () => {
+      await prisma.$disconnect();
+      logger.info('PostgreSQL connection closed through SIGTERM');
       process.exit(0);
     });
 
@@ -36,4 +36,5 @@ const connectDB = async () => {
   }
 };
 
-module.exports = connectDB;
+// Export both the client and connection function
+module.exports = { prisma, connectDB };

@@ -1,8 +1,6 @@
 const express = require('express');
-const Review = require('../models/Review');
-const Project = require('../models/Project');
-const User = require('../models/User');
-const { auth } = require('../middleware/auth');
+const { prisma } = require('../config/database');
+const { protect } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -21,30 +19,60 @@ router.get('/', async (req, res) => {
       limit = 10
     } = req.query;
 
-    // Build query
-    const query = {};
+    // Build Prisma where clause
+    const where = {};
 
-    if (reviewee) query.reviewee = reviewee;
-    if (reviewer) query.reviewer = reviewer;
-    if (project) query.project = project;
-
-    if (minRating || maxRating) {
-      query.rating = {};
-      if (minRating) query.rating.$gte = parseInt(minRating);
-      if (maxRating) query.rating.$lte = parseInt(maxRating);
+    if (reviewee) {
+      where.revieweeId = reviewee;
+    }
+    if (reviewer) {
+      where.reviewerId = reviewer;
+    }
+    if (project) {
+      where.projectId = project;
+    }
+    if (minRating !== undefined || maxRating !== undefined) {
+      where.rating = {};
+      if (minRating) where.rating.gte = parseFloat(minRating);
+      if (maxRating) where.rating.lte = parseFloat(maxRating);
     }
 
     const skip = (page - 1) * limit;
 
-    const reviews = await Review.find(query)
-      .populate('reviewer', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('reviewee', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('project', 'title')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const reviews = await prisma.review.findMany({
+      where,
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        reviewee: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: parseInt(skip),
+      take: parseInt(limit)
+    });
 
-    const total = await Review.countDocuments(query);
+    const total = await prisma.review.count({ where });
 
     res.status(200).json({
       success: true,
@@ -75,25 +103,42 @@ router.get('/user/:userId', async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const reviews = await Review.find({ reviewee: req.params.userId })
-      .populate('reviewer', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('project', 'title')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const reviews = await prisma.review.findMany({
+      where: { revieweeId: req.params.userId },
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: parseInt(skip),
+      take: parseInt(limit)
+    });
 
-    const total = await Review.countDocuments({ reviewee: req.params.userId });
+    const total = await prisma.review.count({
+      where: { revieweeId: req.params.userId }
+    });
 
     // Calculate rating breakdown
-    const ratingBreakdown = await Review.aggregate([
-      { $match: { reviewee: mongoose.Types.ObjectId(req.params.userId) } },
-      {
-        $group: {
-          _id: '$rating',
-          count: { $sum: 1 }
-        }
+    const ratingBreakdown = await prisma.review.groupBy({
+      by: ['rating'],
+      where: { revieweeId: req.params.userId },
+      _count: {
+        rating: true
       }
-    ]);
+    });
 
     res.status(200).json({
       success: true,
@@ -120,7 +165,7 @@ router.get('/user/:userId', async (req, res) => {
 // @route   POST /api/reviews
 // @desc    Create a new review
 // @access  Private
-router.post('/', auth, async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
     const {
       reviewee,
@@ -145,7 +190,10 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Check if project exists and is completed
-    const projectDoc = await Project.findById(project);
+    const projectDoc = await prisma.project.findUnique({
+      where: { id: project }
+    });
+
     if (!projectDoc) {
       return res.status(404).json({
         success: false,
@@ -153,7 +201,7 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    if (projectDoc.status !== 'completed') {
+    if (projectDoc.status !== 'COMPLETED') {
       return res.status(400).json({
         success: false,
         message: 'Can only review completed projects'
@@ -161,8 +209,8 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Check if user is involved in the project
-    const isClient = projectDoc.client.toString() === req.user._id.toString();
-    const isEditor = projectDoc.editor && projectDoc.editor.toString() === req.user._id.toString();
+    const isClient = projectDoc.clientId === req.user.id;
+    const isEditor = projectDoc.editorId === req.user.id;
 
     if (!isClient && !isEditor) {
       return res.status(403).json({
@@ -172,9 +220,9 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Check if reviewee is the other party in the project
-    const revieweeId = reviewee.toString();
-    const clientId = projectDoc.client.toString();
-    const editorId = projectDoc.editor ? projectDoc.editor.toString() : null;
+    const revieweeId = reviewee;
+    const clientId = projectDoc.clientId;
+    const editorId = projectDoc.editorId;
 
     if ((isClient && revieweeId !== editorId) || (isEditor && revieweeId !== clientId)) {
       return res.status(400).json({
@@ -184,9 +232,11 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Check if review already exists
-    const existingReview = await Review.findOne({
-      reviewer: req.user._id,
-      project: project
+    const existingReview = await prisma.review.findFirst({
+      where: {
+        reviewerId: req.user.id,
+        projectId: project
+      }
     });
 
     if (existingReview) {
@@ -196,35 +246,55 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    const review = new Review({
-      reviewer: req.user._id,
-      reviewee,
-      project,
-      rating,
-      comment,
-      categories
+    // Create review
+    const review = await prisma.review.create({
+      data: {
+        reviewerId: req.user.id,
+        revieweeId: reviewee,
+        projectId: project,
+        rating,
+        comment,
+        communication: categories?.communication,
+        quality: categories?.quality,
+        timeliness: categories?.timeliness,
+        professionalism: categories?.professionalism,
+        isVerified: true
+      },
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        reviewee: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      }
     });
-
-    await review.save();
 
     // Update reviewee's average rating
     await updateUserRating(reviewee);
 
-    // Mark review as verified if project is completed
-    review.isVerified = true;
-    await review.save();
-
-    const populatedReview = await Review.findById(review._id)
-      .populate('reviewer', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('reviewee', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('project', 'title');
-
     res.status(201).json({
       success: true,
       message: 'Review created successfully',
-      data: {
-        review: populatedReview
-      }
+      data: { review }
     });
   } catch (error) {
     console.error('Create review error:', error);
@@ -238,7 +308,7 @@ router.post('/', auth, async (req, res) => {
 // @route   PUT /api/reviews/:id/response
 // @desc    Respond to a review
 // @access  Private
-router.put('/:id/response', auth, async (req, res) => {
+router.put('/:id/response', protect, async (req, res) => {
   try {
     const { content } = req.body;
 
@@ -249,7 +319,9 @@ router.put('/:id/response', auth, async (req, res) => {
       });
     }
 
-    const review = await Review.findById(req.params.id);
+    const review = await prisma.review.findUnique({
+      where: { id: req.params.id }
+    });
 
     if (!review) {
       return res.status(404).json({
@@ -259,31 +331,51 @@ router.put('/:id/response', auth, async (req, res) => {
     }
 
     // Check if user is the reviewee
-    if (review.reviewee.toString() !== req.user._id.toString()) {
+    if (review.revieweeId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'You can only respond to reviews about yourself'
       });
     }
 
-    review.response = {
-      content,
-      respondedAt: new Date()
-    };
-
-    await review.save();
-
-    const updatedReview = await Review.findById(req.params.id)
-      .populate('reviewer', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('reviewee', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('project', 'title');
+    const updatedReview = await prisma.review.update({
+      where: { id: req.params.id },
+      data: {
+        response: content,
+        respondedAt: new Date()
+      },
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        reviewee: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      }
+    });
 
     res.status(200).json({
       success: true,
       message: 'Response added successfully',
-      data: {
-        review: updatedReview
-      }
+      data: { review: updatedReview }
     });
   } catch (error) {
     console.error('Respond to review error:', error);
@@ -299,68 +391,54 @@ router.put('/:id/response', auth, async (req, res) => {
 // @access  Public
 router.get('/stats/:userId', async (req, res) => {
   try {
-    const stats = await Review.aggregate([
-      { $match: { reviewee: mongoose.Types.ObjectId(req.params.userId) } },
-      {
-        $group: {
-          _id: null,
-          averageRating: { $avg: '$rating' },
-          totalReviews: { $sum: 1 },
-          ratingCounts: {
-            $push: '$rating'
-          }
-        }
-      }
-    ]);
+    const stats = await prisma.review.aggregate({
+      where: { revieweeId: req.params.userId },
+      _avg: { rating: true },
+      _count: { rating: true }
+    });
 
-    const categoryStats = await Review.aggregate([
-      { 
-        $match: { 
-          reviewee: mongoose.Types.ObjectId(req.params.userId),
-          'categories.communication': { $exists: true }
-        } 
-      },
-      {
-        $group: {
-          _id: null,
-          avgCommunication: { $avg: '$categories.communication' },
-          avgQuality: { $avg: '$categories.quality' },
-          avgTimeliness: { $avg: '$categories.timeliness' },
-          avgProfessionalism: { $avg: '$categories.professionalism' }
+    const categoryStats = await prisma.review.aggregate({
+      where: {
+        revieweeId: req.params.userId,
+        NOT: {
+          communication: null
         }
+      },
+      _avg: {
+        communication: true,
+        quality: true,
+        timeliness: true,
+        professionalism: true
       }
-    ]);
+    });
+
+    // Get rating breakdown
+    const ratingBreakdownRaw = await prisma.review.groupBy({
+      by: ['rating'],
+      where: { revieweeId: req.params.userId },
+      _count: { rating: true }
+    });
+
+    const ratingBreakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    ratingBreakdownRaw.forEach(item => {
+      ratingBreakdown[Math.floor(item.rating)] = item._count.rating;
+    });
 
     const result = {
-      averageRating: stats[0]?.averageRating || 0,
-      totalReviews: stats[0]?.totalReviews || 0,
-      ratingBreakdown: {
-        5: 0,
-        4: 0,
-        3: 0,
-        2: 0,
-        1: 0
-      },
-      categoryAverages: categoryStats[0] || {
-        communication: 0,
-        quality: 0,
-        timeliness: 0,
-        professionalism: 0
+      averageRating: parseFloat(stats._avg.rating || 0).toFixed(1),
+      totalReviews: stats._count.rating || 0,
+      ratingBreakdown,
+      categoryAverages: {
+        communication: parseFloat(categoryStats._avg.communication || 0).toFixed(1),
+        quality: parseFloat(categoryStats._avg.quality || 0).toFixed(1),
+        timeliness: parseFloat(categoryStats._avg.timeliness || 0).toFixed(1),
+        professionalism: parseFloat(categoryStats._avg.professionalism || 0).toFixed(1)
       }
     };
 
-    // Calculate rating breakdown
-    if (stats[0]) {
-      stats[0].ratingCounts.forEach(rating => {
-        result.ratingBreakdown[rating] = (result.ratingBreakdown[rating] || 0) + 1;
-      });
-    }
-
     res.status(200).json({
       success: true,
-      data: {
-        stats: result
-      }
+      data: { stats: result }
     });
   } catch (error) {
     console.error('Get review stats error:', error);
@@ -374,23 +452,21 @@ router.get('/stats/:userId', async (req, res) => {
 // Helper function to update user's average rating
 async function updateUserRating(userId) {
   try {
-    const stats = await Review.aggregate([
-      { $match: { reviewee: mongoose.Types.ObjectId(userId) } },
-      {
-        $group: {
-          _id: null,
-          averageRating: { $avg: '$rating' },
-          totalReviews: { $sum: 1 }
-        }
+    const stats = await prisma.review.aggregate({
+      where: { revieweeId: userId },
+      _avg: { rating: true },
+      _count: { rating: true }
+    });
+
+    const averageRating = stats._avg.rating || 0;
+    const totalReviews = stats._count.rating || 0;
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ratingAverage: averageRating,
+        ratingCount: totalReviews
       }
-    ]);
-
-    const averageRating = stats[0]?.averageRating || 0;
-    const totalReviews = stats[0]?.totalReviews || 0;
-
-    await User.findByIdAndUpdate(userId, {
-      'ratings.average': averageRating,
-      'ratings.count': totalReviews
     });
   } catch (error) {
     console.error('Update user rating error:', error);

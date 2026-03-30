@@ -1,0 +1,507 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - combines all user-related data
+model User {
+  id          String   @id @default(uuid())
+  username    String   @unique @db.VarChar(30)
+  email       String   @unique @db.VarChar(255)
+  password    String   @db.VarChar(255)
+  refreshToken String? @db.VarChar(255)
+  role        Role     @default(CLIENT)
+  
+  // Profile fields
+  firstName   String   @db.VarChar(50)
+  lastName    String   @db.VarChar(50)
+  bio         String?  @db.VarChar(500)
+  avatar      String?
+  location    String?  @db.VarChar(100)
+  website     String?
+  phone       String?  @db.VarChar(20)
+  
+  // Editor profile
+  isEditor           Boolean  @default(false)
+  skills             Skill[]
+  experience         ExperienceLevel @default(INTERMEDIATE)
+  hourlyRate         Decimal? @db.Decimal(10, 2)
+  availability       Boolean  @default(true)
+  editorTotalEarnings Decimal? @default(0) @db.Decimal(10, 2)
+  completedProjects  Int      @default(0)
+  
+  // Client profile
+  isClient      Boolean  @default(false)
+  company       String?  @db.VarChar(100)
+  industry      String?  @db.VarChar(100)
+  companySize   CompanySize?
+  clientTotalSpent Decimal? @default(0) @db.Decimal(10, 2)
+  postedProjects   Int      @default(0)
+  
+  // Ratings
+  ratingAverage Decimal? @default(0) @db.Decimal(2, 1)
+  ratingCount   Int      @default(0)
+  
+  // Verification
+  isVerified         Boolean  @default(false)
+  emailVerified     Boolean  @default(false)
+  idVerified        Boolean  @default(false)
+  verificationToken String?
+  verificationExpires DateTime?
+  
+  // Security
+  lastLogin       DateTime?
+  loginAttempts   Int      @default(0)
+  lockUntil       DateTime?
+  passwordChangedAt DateTime?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+  
+  // Preferences
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(true)
+  projectUpdateNotifications Boolean @default(true)
+  messageNotifications Boolean @default(true)
+  marketingNotifications Boolean @default(false)
+  showEmail        Boolean  @default(false)
+  showPhone        Boolean  @default(false)
+  allowMessages    Boolean  @default(true)
+  theme            Theme    @default(DARK)
+  language         String   @default("en") @db.VarChar(10)
+  
+  // Status
+  isActive     Boolean   @default(true)
+  isSuspended  Boolean   @default(false)
+  suspensionReason String?
+  suspendedAt  DateTime?
+  suspendedUntil DateTime?
+  
+  // Subscription
+  subscriptionPlan  Plan     @default(FREE)
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId   String?
+  stripeSubscriptionId String?
+  subscriptionPeriodEnd DateTime?
+  cancelAtPeriodEnd  Boolean @default(false)
+  
+  // Wallet
+  walletBalance   Decimal @default(0) @db.Decimal(10, 2)
+  walletCredits   Decimal @default(0) @db.Decimal(10, 2)
+  walletEscrow    Decimal @default(0) @db.Decimal(10, 2)
+  walletPending   Decimal @default(0) @db.Decimal(10, 2)
+  walletTotalEarnings Decimal @default(0) @db.Decimal(10, 2)
+  walletTotalSpent Decimal @default(0) @db.Decimal(10, 2)
+  
+  // Referral
+  referralCode      String?  @unique @db.VarChar(50)
+  referredById      String?
+  referredBy        User?    @relation("UserReferrals", fields: [referredById], references: [id])
+  totalReferrals    Int      @default(0)
+  referralCredits   Decimal  @default(0) @db.Decimal(10, 2)
+  referrals         User[]   @relation("UserReferrals")
+  
+  // Usage stats
+  projectsPosted     Int @default(0)
+  applicationsSubmitted Int @default(0)
+  messagesSent       Int @default(0)
+  storageUsed        Int @default(0)
+  
+  // Profile stats
+  profileViews     Int @default(0)
+  responseRate     Decimal? @db.Decimal(5, 2)
+  onTimeDeliveryRate Decimal? @db.Decimal(5, 2)
+  clientSatisfaction Decimal? @db.Decimal(5, 2)
+  averageDeliveryTime Int?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  projectsAsClient Project[] @relation("ProjectClient")
+  projectsAsEditor Project[] @relation("ProjectEditor")
+  messagesSentList Message[] @relation("MessageSender")
+  messagesReceived Message[] @relation("MessageRecipient")
+  reviewsGiven     Review[] @relation("ReviewReviewer")
+  reviewsReceived  Review[] @relation("ReviewReviewee")
+  education        Education[]
+  certifications   Certification[]
+  software       UserSoftware[]
+  languages      UserLanguage[]
+  portfolioItems PortfolioItem[]
+  verificationDocuments VerificationDocument[]
+  
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([ratingAverage])
+  @@index([availability, role])
+  @@map("users")
+}
+
+model Education {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution  String?
+  degree       String?
+  field        String?
+  startDate    DateTime?
+  endDate      DateTime?
+  isCurrent    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  
+  @@map("education")
+}
+
+model Certification {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  issuer        String?
+  issueDate     DateTime?
+  expiryDate    DateTime?
+  credentialId  String?
+  credentialUrl String?
+  createdAt     DateTime @default(now())
+  
+  @@map("certifications")
+}
+
+model UserSoftware {
+  id     String         @id @default(uuid())
+  userId String
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+  level  ProficiencyLevel @default(INTERMEDIATE)
+  
+  @@map("user_software")
+}
+
+model UserLanguage {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  language    String
+  proficiency Proficiency @default(CONVERSATIONAL)
+  
+  @@map("user_languages")
+}
+
+model PortfolioItem {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String   @db.VarChar(100)
+  description  String?  @db.VarChar(500)
+  videoUrl     String?
+  thumbnailUrl String?
+  tags         String[] // PostgreSQL array type
+  category     ProjectCategory?
+  duration     String?
+  clientName   String?
+  completedAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  
+  @@map("portfolio_items")
+}
+
+model VerificationDocument {
+  id             String              @id @default(uuid())
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           DocumentType
+  url            String
+  publicId       String?
+  status         VerificationStatus  @default(PENDING)
+  rejectedReason String?
+  uploadedAt     DateTime            @default(now())
+  
+  @@map("verification_documents")
+}
+
+model Project {
+  id          String          @id @default(uuid())
+  title       String          @db.VarChar(100)
+  description String          @db.Text
+  clientId    String
+  client      User            @relation("ProjectClient", fields: [clientId], references: [id])
+  editorId    String?
+  editor      User?           @relation("ProjectEditor", fields: [editorId], references: [id])
+  category    ProjectCategory
+  budget      Decimal         @db.Decimal(10, 2)
+  deadline    DateTime
+  status      ProjectStatus   @default(OPEN)
+  
+  // Requirements
+  duration    String?
+  format      String?
+  style       String?
+  footage     String?
+  music       String?
+  revisions   Int             @default(2)
+  
+  tags        String[] // PostgreSQL array
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  // Relations
+  attachments ProjectAttachment[]
+  proposals   Proposal[]
+  milestones  Milestone[]
+  payments    Payment[]
+  messages    Message[]
+  reviews     Review[]
+  
+  @@index([status, category])
+  @@index([clientId])
+  @@index([editorId])
+  @@map("projects")
+}
+
+model ProjectAttachment {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  filename   String
+  url        String
+  size       Int
+  uploadedAt DateTime @default(now())
+  
+  @@map("project_attachments")
+}
+
+model Proposal {
+  id              String          @id @default(uuid())
+  projectId       String
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  editorId        String
+  message         String?
+  estimatedTime   String?
+  proposedBudget  Decimal?        @db.Decimal(10, 2)
+  submittedAt     DateTime        @default(now())
+  status          ProposalStatus  @default(PENDING)
+  
+  @@map("proposals")
+}
+
+model Milestone {
+  id          String          @id @default(uuid())
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      MilestoneStatus @default(PENDING)
+  completedAt DateTime?
+  
+  @@map("milestones")
+}
+
+model Payment {
+  id       String        @id @default(uuid())
+  projectId String
+  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  amount   Decimal       @db.Decimal(10, 2)
+  status   PaymentStatus @default(PENDING)
+  paidAt   DateTime?
+  method   String?
+  
+  @@map("payments")
+}
+
+model Message {
+  id          String        @id @default(uuid())
+  senderId    String
+  sender      User          @relation("MessageSender", fields: [senderId], references: [id])
+  recipientId String
+  recipient   User          @relation("MessageRecipient", fields: [recipientId], references: [id])
+  projectId   String?
+  project     Project?      @relation(fields: [projectId], references: [id])
+  content     String        @db.VarChar(2000)
+  type        MessageType   @default(TEXT)
+  
+  isRead      Boolean       @default(false)
+  readAt      DateTime?
+  isEdited    Boolean       @default(false)
+  editedAt    DateTime?
+  isDeleted   Boolean       @default(false)
+  deletedAt   DateTime?
+  
+  createdAt   DateTime      @default(now())
+  
+  // Relations
+  attachments MessageAttachment[]
+  
+  @@index([senderId, recipientId, createdAt])
+  @@index([recipientId, isRead])
+  @@index([projectId, createdAt])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id       String  @id @default(uuid())
+  messageId String
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  filename String
+  url      String
+  size     Int
+  mimeType String?
+  
+  @@map("message_attachments")
+}
+
+model Review {
+  id           String   @id @default(uuid())
+  reviewerId   String
+  reviewer     User     @relation("ReviewReviewer", fields: [reviewerId], references: [id])
+  revieweeId   String
+  reviewee     User     @relation("ReviewReviewee", fields: [revieweeId], references: [id])
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rating       Decimal  @db.Decimal(2, 1)
+  comment      String?  @db.VarChar(1000)
+  
+  // Category ratings
+  communication Decimal? @db.Decimal(2, 1)
+  quality       Decimal? @db.Decimal(2, 1)
+  timeliness    Decimal? @db.Decimal(2, 1)
+  professionalism Decimal? @db.Decimal(2, 1)
+  
+  isVerified   Boolean  @default(false)
+  response     String?
+  respondedAt  DateTime?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@unique([reviewerId, projectId])
+  @@index([revieweeId, rating])
+  @@index([projectId])
+  @@map("reviews")
+}
+
+// Enums
+enum Role {
+  EDITOR
+  CLIENT
+}
+
+enum Skill {
+  VIDEO_EDITING
+  MOTION_GRAPHICS
+  COLOR_GRADING
+  AUDIO_EDITING
+  ANIMATION
+  VFX
+  STORYTELLING
+}
+
+enum ExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  EXPERT
+  PROFESSIONAL
+}
+
+enum CompanySize {
+  SMALL      @map("1-10")
+  MEDIUM     @map("11-50")
+  LARGE      @map("51-200")
+  ENTERPRISE @map("201-500")
+  CORPORATE  @map("500+")
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  AUTO
+}
+
+enum Plan {
+  FREE
+  PRO
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  UNPAID
+}
+
+enum ProficiencyLevel {
+  BEGINNER
+  INTERMEDIATE
+  EXPERT
+}
+
+enum Proficiency {
+  BASIC
+  CONVERSATIONAL
+  FLUENT
+  NATIVE
+}
+
+enum DocumentType {
+  ID_CARD
+  PASSPORT
+  DRIVING_LICENSE
+  OTHER
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProjectCategory {
+  VIDEO_EDITING    @map("video-editing")
+  MOTION_GRAPHICS  @map("motion-graphics")
+  COLOR_GRADING    @map("color-grading")
+  AUDIO_EDITING    @map("audio-editing")
+  ANIMATION        @map("animation")
+  VFX              @map("vfx")
+  FULL_PRODUCTION  @map("full-production")
+}
+
+enum ProjectStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum MilestoneStatus {
+  PENDING
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+enum MessageType {
+  TEXT
+  FILE
+  IMAGE
+  VIDEO
+  SYSTEM
+}

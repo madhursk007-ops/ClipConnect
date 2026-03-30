@@ -1,8 +1,9 @@
 const express = require('express');
-const router = express.Router();
+const { prisma } = require('../config/database');
 const { protect } = require('../middlewares/auth');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const User = require('../models/User');
+
+const router = express.Router();
 
 // Subscription plans configuration
 const SUBSCRIPTION_PLANS = {
@@ -69,9 +70,21 @@ const SUBSCRIPTION_PLANS = {
 // @access  Private
 router.get('/current', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    
-    const planType = user.subscription?.plan || 'free';
+    // Get user subscription details
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        subscriptionPlan: true,
+        subscriptionStatus: true,
+        stripeCustomerId: true,
+        stripeSubscriptionId: true,
+        subscriptionPeriodEnd: true,
+        cancelAtPeriodEnd: true
+      }
+    });
+
+    const planType = user.subscriptionPlan || 'free';
     const plan = SUBSCRIPTION_PLANS[planType];
 
     // Calculate usage
@@ -115,7 +128,7 @@ router.get('/current', protect, async (req, res) => {
 router.post('/upgrade', protect, async (req, res) => {
   try {
     const { planType } = req.body;
-    
+
     if (!['pro', 'premium'].includes(planType)) {
       return res.status(400).json({
         success: false,
@@ -165,7 +178,7 @@ router.post('/upgrade', protect, async (req, res) => {
 router.post('/cancel', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    
+
     if (!user.subscription?.stripeSubscriptionId) {
       return res.status(400).json({
         success: false,
@@ -201,7 +214,7 @@ router.post('/cancel', protect, async (req, res) => {
 router.post('/reactivate', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    
+
     if (!user.subscription?.stripeSubscriptionId) {
       return res.status(400).json({
         success: false,
@@ -273,7 +286,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     case 'customer.subscription.deleted':
       const deletedSub = event.data.object;
       const customerId = deletedSub.customer;
-      
+
       // Find user and downgrade to free
       await User.findOneAndUpdate(
         { 'subscription.stripeCustomerId': customerId },

@@ -1,6 +1,6 @@
 const express = require('express');
-const User = require('../models/User');
-const { auth, authorize } = require('../middleware/auth');
+const { prisma } = require('../config/database');
+const { protect, authorize } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -20,47 +20,84 @@ router.get('/', async (req, res) => {
       limit = 10
     } = req.query;
 
-    // Build query
-    const query = { isActive: true };
+    // Build Prisma where clause
+    const where = { isActive: true };
 
     if (role) {
-      query.role = role;
+      where.role = role.toUpperCase();
     }
 
     // Editor specific filters
     if (role === 'editor') {
+      where.isEditor = true;
       if (skills) {
-        query['editorProfile.skills'] = { $in: skills.split(',') };
+        where.skills = { hasSome: skills.split(',').map(s => s.toUpperCase().replace('-', '_')) };
       }
       if (experience) {
-        query['editorProfile.experience'] = experience;
+        where.experience = experience.toUpperCase();
       }
-      if (minRate || maxRate) {
-        query['editorProfile.hourlyRate'] = {};
-        if (minRate) query['editorProfile.hourlyRate'].$gte = parseFloat(minRate);
-        if (maxRate) query['editorProfile.hourlyRate'].$lte = parseFloat(maxRate);
+      if (minRate !== undefined || maxRate !== undefined) {
+        where.hourlyRate = {};
+        if (minRate) where.hourlyRate.gte = parseFloat(minRate);
+        if (maxRate) where.hourlyRate.lte = parseFloat(maxRate);
       }
     }
 
-    // Search functionality
+    // Search functionality (case insensitive)
     if (search) {
-      query.$or = [
-        { username: { $regex: search, $options: 'i' } },
-        { 'profile.firstName': { $regex: search, $options: 'i' } },
-        { 'profile.lastName': { $regex: search, $options: 'i' } },
-        { 'profile.bio': { $regex: search, $options: 'i' } }
+      where.OR = [
+        { username: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { bio: { contains: search, mode: 'insensitive' } }
       ];
     }
 
     const skip = (page - 1) * limit;
 
-    const users = await User.find(query)
-      .select('-password')
-      .sort({ 'ratings.average': -1, createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    // Get users with pagination
+    const users = await prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        bio: true,
+        avatar: true,
+        location: true,
+        website: true,
+        isEditor: true,
+        skills: true,
+        experience: true,
+        hourlyRate: true,
+        availability: true,
+        isClient: true,
+        company: true,
+        industry: true,
+        ratingAverage: true,
+        ratingCount: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            projectsAsEditor: true,
+            reviewsReceived: true
+          }
+        }
+      },
+      orderBy: [
+        { ratingAverage: 'desc' },
+        { createdAt: 'desc' }
+      ],
+      skip: parseInt(skip),
+      take: parseInt(limit)
+    });
 
-    const total = await User.countDocuments(query);
+    const total = await prisma.user.count({ where });
 
     res.status(200).json({
       success: true,
@@ -88,7 +125,69 @@ router.get('/', async (req, res) => {
 // @access  Public
 router.get('/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        bio: true,
+        avatar: true,
+        location: true,
+        website: true,
+        phone: true,
+        isEditor: true,
+        skills: true,
+        experience: true,
+        hourlyRate: true,
+        availability: true,
+        editorTotalEarnings: true,
+        completedProjects: true,
+        isClient: true,
+        company: true,
+        industry: true,
+        companySize: true,
+        clientTotalSpent: true,
+        postedProjects: true,
+        ratingAverage: true,
+        ratingCount: true,
+        isVerified: true,
+        emailVerified: true,
+        idVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        education: true,
+        certifications: true,
+        portfolioItems: true,
+        software: true,
+        languages: true,
+        reviewsReceived: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                username: true,
+                avatar: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 5
+        },
+        _count: {
+          select: {
+            projectsAsEditor: true,
+            projectsAsClient: true,
+            reviewsReceived: true
+          }
+        }
+      }
+    });
 
     if (!user || !user.isActive) {
       return res.status(404).json({
@@ -99,12 +198,10 @@ router.get('/:id', async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: {
-        user
-      }
+      data: { user }
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error('Get user by ID error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -129,13 +226,55 @@ router.get('/role/:role', async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    const users = await User.find({ role, isActive: true })
-      .select('-password')
-      .sort({ 'ratings.average': -1, createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    // Convert role to uppercase for Prisma enum
+    const roleFilter = role.toUpperCase();
 
-    const total = await User.countDocuments({ role, isActive: true });
+    const users = await prisma.user.findMany({
+      where: {
+        role: roleFilter,
+        isActive: true
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        bio: true,
+        avatar: true,
+        location: true,
+        website: true,
+        isEditor: true,
+        skills: true,
+        experience: true,
+        hourlyRate: true,
+        availability: true,
+        isClient: true,
+        company: true,
+        industry: true,
+        ratingAverage: true,
+        ratingCount: true,
+        isVerified: true,
+        createdAt: true,
+        _count: {
+          select: {
+            projectsAsEditor: true,
+            reviewsReceived: true
+          }
+        }
+      },
+      orderBy: [
+        { ratingAverage: 'desc' },
+        { createdAt: 'desc' }
+      ],
+      skip: parseInt(skip),
+      take: parseInt(limit)
+    });
+
+    const total = await prisma.user.count({
+      where: { role: roleFilter, isActive: true }
+    });
 
     res.status(200).json({
       success: true,
@@ -165,21 +304,43 @@ router.get('/editors/featured', async (req, res) => {
   try {
     const { limit = 6 } = req.query;
 
-    const editors = await User.find({
-      role: 'editor',
-      isActive: true,
-      'editorProfile.availability': true,
-      'ratings.average': { $gte: 4.0 }
-    })
-      .select('-password')
-      .sort({ 'ratings.average': -1, 'editorProfile.completedProjects': -1 })
-      .limit(parseInt(limit));
+    const editors = await prisma.user.findMany({
+      where: {
+        role: 'EDITOR',
+        isActive: true,
+        availability: true,
+        ratingAverage: { gte: 4.0 }
+      },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        bio: true,
+        avatar: true,
+        location: true,
+        skills: true,
+        experience: true,
+        hourlyRate: true,
+        ratingAverage: true,
+        ratingCount: true,
+        completedProjects: true,
+        _count: {
+          select: {
+            reviewsReceived: true
+          }
+        }
+      },
+      orderBy: [
+        { ratingAverage: 'desc' },
+        { completedProjects: 'desc' }
+      ],
+      take: parseInt(limit)
+    });
 
     res.status(200).json({
       success: true,
-      data: {
-        editors
-      }
+      data: { editors }
     });
   } catch (error) {
     console.error('Get featured editors error:', error);
@@ -193,9 +354,9 @@ router.get('/editors/featured', async (req, res) => {
 // @route   PUT /api/users/:id/portfolio
 // @desc    Add portfolio item (editors only)
 // @access  Private
-router.put('/:id/portfolio', auth, authorize('editor'), async (req, res) => {
+router.put('/:id/portfolio', protect, authorize('editor'), async (req, res) => {
   try {
-    const { title, description, videoUrl, thumbnailUrl, tags } = req.body;
+    const { title, description, videoUrl, thumbnailUrl, tags, category } = req.body;
 
     if (!title || !videoUrl) {
       return res.status(400).json({
@@ -205,33 +366,29 @@ router.put('/:id/portfolio', auth, authorize('editor'), async (req, res) => {
     }
 
     // Check if user is updating their own portfolio
-    if (req.user._id.toString() !== req.params.id) {
+    if (req.user.id !== req.params.id) {
       return res.status(403).json({
         success: false,
         message: 'You can only update your own portfolio'
       });
     }
 
-    const portfolioItem = {
-      title,
-      description,
-      videoUrl,
-      thumbnailUrl,
-      tags: tags || []
-    };
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $push: { 'editorProfile.portfolio': portfolioItem } },
-      { new: true, runValidators: true }
-    ).select('-password');
+    const portfolioItem = await prisma.portfolioItem.create({
+      data: {
+        userId: req.params.id,
+        title,
+        description,
+        videoUrl,
+        thumbnailUrl,
+        tags: tags || [],
+        category: category ? category.toUpperCase().replace('-', '_') : null
+      }
+    });
 
     res.status(200).json({
       success: true,
       message: 'Portfolio item added successfully',
-      data: {
-        user
-      }
+      data: { portfolioItem }
     });
   } catch (error) {
     console.error('Add portfolio item error:', error);
@@ -245,28 +402,23 @@ router.put('/:id/portfolio', auth, authorize('editor'), async (req, res) => {
 // @route   DELETE /api/users/:id/portfolio/:portfolioId
 // @desc    Remove portfolio item (editors only)
 // @access  Private
-router.delete('/:id/portfolio/:portfolioId', auth, authorize('editor'), async (req, res) => {
+router.delete('/:id/portfolio/:portfolioId', protect, authorize('editor'), async (req, res) => {
   try {
     // Check if user is updating their own portfolio
-    if (req.user._id.toString() !== req.params.id) {
+    if (req.user.id !== req.params.id) {
       return res.status(403).json({
         success: false,
         message: 'You can only update your own portfolio'
       });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $pull: { 'editorProfile.portfolio': { _id: req.params.portfolioId } } },
-      { new: true }
-    ).select('-password');
+    await prisma.portfolioItem.delete({
+      where: { id: req.params.portfolioId }
+    });
 
     res.status(200).json({
       success: true,
-      message: 'Portfolio item removed successfully',
-      data: {
-        user
-      }
+      message: 'Portfolio item removed successfully'
     });
   } catch (error) {
     console.error('Remove portfolio item error:', error);

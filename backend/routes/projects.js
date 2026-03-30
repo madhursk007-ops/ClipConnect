@@ -1,6 +1,6 @@
 const express = require('express');
-const Project = require('../models/Project');
-const { auth, authorize } = require('../middleware/auth');
+const { prisma } = require('../config/database');
+const { protect, authorize } = require('../middlewares/auth');
 const { emitProjectCreated, emitProjectCompleted } = require('../config/socket');
 
 const router = express.Router();
@@ -20,38 +20,62 @@ router.get('/', async (req, res) => {
       limit = 10
     } = req.query;
 
-    // Build query
-    const query = {};
+    // Build Prisma where clause
+    const where = {};
 
     if (status) {
-      query.status = status;
+      where.status = status.toUpperCase();
     }
 
     if (category) {
-      query.category = category;
+      where.category = category.toUpperCase().replace('-', '_');
     }
 
-    if (minBudget || maxBudget) {
-      query.budget = {};
-      if (minBudget) query.budget.$gte = parseFloat(minBudget);
-      if (maxBudget) query.budget.$lte = parseFloat(maxBudget);
+    if (minBudget !== undefined || maxBudget !== undefined) {
+      where.budget = {};
+      if (minBudget) where.budget.gte = parseFloat(minBudget);
+      if (maxBudget) where.budget.lte = parseFloat(maxBudget);
     }
 
-    // Search functionality
+    // Search functionality (case insensitive on title and description)
     if (search) {
-      query.$text = { $search: search };
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
     }
 
     const skip = (page - 1) * limit;
 
-    const projects = await Project.find(query)
-      .populate('client', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('editor', 'username profile.firstName profile.lastName profile.avatar')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    // Get projects with related client and editor data
+    const projects = await prisma.project.findMany({
+      where,
+      include: {
+        client: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        editor: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: parseInt(skip),
+      take: parseInt(limit)
+    });
 
-    const total = await Project.countDocuments(query);
+    const total = await prisma.project.count({ where });
 
     res.status(200).json({
       success: true,
@@ -79,10 +103,53 @@ router.get('/', async (req, res) => {
 // @access  Public
 router.get('/:id', async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id)
-      .populate('client', 'username profile.firstName profile.lastName profile.avatar profile.location')
-      .populate('editor', 'username profile.firstName profile.lastName profile.avatar profile.location ratings')
-      .populate('proposals.editor', 'username profile.firstName profile.lastName profile.avatar ratings editorProfile.hourlyRate');
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id },
+      include: {
+        client: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            location: true
+          }
+        },
+        editor: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            location: true,
+            ratingAverage: true,
+            ratingCount: true
+          }
+        },
+        proposals: {
+          include: {
+            editor: {
+              select: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                ratingAverage: true,
+                ratingCount: true,
+                hourlyRate: true
+              }
+            }
+          },
+          orderBy: { submittedAt: 'desc' }
+        },
+        attachments: true,
+        milestones: true,
+        payments: true
+      }
+    });
 
     if (!project) {
       return res.status(404).json({
@@ -109,7 +176,7 @@ router.get('/:id', async (req, res) => {
 // @route   POST /api/projects
 // @desc    Create a new project (clients only)
 // @access  Private
-router.post('/', auth, authorize('client'), async (req, res) => {
+router.post('/', protect, authorize('client'), async (req, res) => {
   try {
     const {
       title,
@@ -129,38 +196,52 @@ router.post('/', auth, authorize('client'), async (req, res) => {
       });
     }
 
-    const project = new Project({
-      title,
-      description,
-      client: req.user._id,
-      category,
-      budget,
-      deadline,
-      requirements,
-      tags: tags || []
+    // Create project
+    const project = await prisma.project.create({
+      data: {
+        title,
+        description,
+        clientId: req.user.id,
+        category: category.toUpperCase().replace('-', '_'),
+        budget: parseFloat(budget),
+        deadline: new Date(deadline),
+        duration: requirements?.duration,
+        format: requirements?.format,
+        style: requirements?.style,
+        footage: requirements?.footage,
+        music: requirements?.music,
+        revisions: requirements?.revisions || 2,
+        tags: tags || []
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        }
+      }
     });
 
-    await project.save();
-
     // Update client's posted projects count
-    req.user.clientProfile.postedProjects += 1;
-    await req.user.save();
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { postedProjects: { increment: 1 } }
+    });
 
     // Emit socket event for real-time stats update
     emitProjectCreated({
       title: project.title,
-      id: project._id
+      id: project.id
     });
-
-    const populatedProject = await Project.findById(project._id)
-      .populate('client', 'username profile.firstName profile.lastName profile.avatar');
 
     res.status(201).json({
       success: true,
       message: 'Project created successfully',
-      data: {
-        project: populatedProject
-      }
+      data: { project }
     });
   } catch (error) {
     console.error('Create project error:', error);
@@ -175,9 +256,11 @@ router.post('/', auth, authorize('client'), async (req, res) => {
 // @route   PUT /api/projects/:id
 // @desc    Update project (client only)
 // @access  Private
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', protect, async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id);
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id }
+    });
 
     if (!project) {
       return res.status(404).json({
@@ -187,7 +270,7 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     // Check if user is the project client
-    if (project.client.toString() !== req.user._id.toString()) {
+    if (project.clientId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'You can only update your own projects'
@@ -195,7 +278,7 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     // Don't allow updates if project is in progress or completed
-    if (['in-progress', 'completed'].includes(project.status)) {
+    if (['IN_PROGRESS', 'COMPLETED'].includes(project.status)) {
       return res.status(400).json({
         success: false,
         message: 'Cannot update project in current status'
@@ -216,26 +299,51 @@ router.put('/:id', auth, async (req, res) => {
     const updateData = {};
     if (title) updateData.title = title;
     if (description) updateData.description = description;
-    if (category) updateData.category = category;
-    if (budget) updateData.budget = budget;
-    if (deadline) updateData.deadline = deadline;
-    if (requirements) updateData.requirements = requirements;
+    if (category) updateData.category = category.toUpperCase().replace('-', '_');
+    if (budget) updateData.budget = parseFloat(budget);
+    if (deadline) updateData.deadline = new Date(deadline);
+    if (requirements) {
+      if (requirements.duration) updateData.duration = requirements.duration;
+      if (requirements.format) updateData.format = requirements.format;
+      if (requirements.style) updateData.style = requirements.style;
+      if (requirements.footage) updateData.footage = requirements.footage;
+      if (requirements.music) updateData.music = requirements.music;
+      if (requirements.revisions) updateData.revisions = requirements.revisions;
+    }
     if (tags) updateData.tags = tags;
-    if (status && ['open', 'cancelled'].includes(status)) updateData.status = status;
+    if (status && ['OPEN', 'CANCELLED'].includes(status.toUpperCase())) {
+      updateData.status = status.toUpperCase();
+    }
 
-    const updatedProject = await Project.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('client', 'username profile.firstName profile.lastName profile.avatar')
-     .populate('editor', 'username profile.firstName profile.lastName profile.avatar');
+    const updatedProject = await prisma.project.update({
+      where: { id: req.params.id },
+      data: updateData,
+      include: {
+        client: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        editor: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        }
+      }
+    });
 
     res.status(200).json({
       success: true,
       message: 'Project updated successfully',
-      data: {
-        project: updatedProject
-      }
+      data: { project: updatedProject }
     });
   } catch (error) {
     console.error('Update project error:', error);
@@ -249,7 +357,7 @@ router.put('/:id', auth, async (req, res) => {
 // @route   POST /api/projects/:id/proposals
 // @desc    Submit a proposal (editors only)
 // @access  Private
-router.post('/:id/proposals', auth, authorize('editor'), async (req, res) => {
+router.post('/:id/proposals', protect, authorize('editor'), async (req, res) => {
   try {
     const { message, estimatedTime, proposedBudget } = req.body;
 
@@ -260,7 +368,9 @@ router.post('/:id/proposals', auth, authorize('editor'), async (req, res) => {
       });
     }
 
-    const project = await Project.findById(req.params.id);
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id }
+    });
 
     if (!project) {
       return res.status(404).json({
@@ -270,7 +380,7 @@ router.post('/:id/proposals', auth, authorize('editor'), async (req, res) => {
     }
 
     // Check if project is still open
-    if (project.status !== 'open') {
+    if (project.status !== 'OPEN') {
       return res.status(400).json({
         success: false,
         message: 'Project is not accepting proposals'
@@ -278,9 +388,12 @@ router.post('/:id/proposals', auth, authorize('editor'), async (req, res) => {
     }
 
     // Check if editor has already submitted a proposal
-    const existingProposal = project.proposals.find(
-      p => p.editor.toString() === req.user._id.toString()
-    );
+    const existingProposal = await prisma.proposal.findFirst({
+      where: {
+        projectId: req.params.id,
+        editorId: req.user.id
+      }
+    });
 
     if (existingProposal) {
       return res.status(400).json({
@@ -289,25 +402,45 @@ router.post('/:id/proposals', auth, authorize('editor'), async (req, res) => {
       });
     }
 
-    const proposal = {
-      editor: req.user._id,
-      message,
-      estimatedTime,
-      proposedBudget
-    };
+    // Create proposal
+    await prisma.proposal.create({
+      data: {
+        projectId: req.params.id,
+        editorId: req.user.id,
+        message,
+        estimatedTime,
+        proposedBudget: parseFloat(proposedBudget)
+      }
+    });
 
-    project.proposals.push(proposal);
-    await project.save();
-
-    const updatedProject = await Project.findById(req.params.id)
-      .populate('proposals.editor', 'username profile.firstName profile.lastName profile.avatar ratings editorProfile.hourlyRate');
+    // Get updated project with proposals
+    const updatedProject = await prisma.project.findUnique({
+      where: { id: req.params.id },
+      include: {
+        proposals: {
+          include: {
+            editor: {
+              select: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                ratingAverage: true,
+                ratingCount: true,
+                hourlyRate: true
+              }
+            }
+          },
+          orderBy: { submittedAt: 'desc' }
+        }
+      }
+    });
 
     res.status(201).json({
       success: true,
       message: 'Proposal submitted successfully',
-      data: {
-        project: updatedProject
-      }
+      data: { project: updatedProject }
     });
   } catch (error) {
     console.error('Submit proposal error:', error);
@@ -321,9 +454,11 @@ router.post('/:id/proposals', auth, authorize('editor'), async (req, res) => {
 // @route   PUT /api/projects/:id/proposals/:proposalId/accept
 // @desc    Accept a proposal (client only)
 // @access  Private
-router.put('/:id/proposals/:proposalId/accept', auth, authorize('client'), async (req, res) => {
+router.put('/:id/proposals/:proposalId/accept', protect, authorize('client'), async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id);
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id }
+    });
 
     if (!project) {
       return res.status(404).json({
@@ -333,7 +468,7 @@ router.put('/:id/proposals/:proposalId/accept', auth, authorize('client'), async
     }
 
     // Check if user is the project client
-    if (project.client.toString() !== req.user._id.toString()) {
+    if (project.clientId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'You can only accept proposals for your own projects'
@@ -341,7 +476,9 @@ router.put('/:id/proposals/:proposalId/accept', auth, authorize('client'), async
     }
 
     // Find the proposal
-    const proposal = project.proposals.id(req.params.proposalId);
+    const proposal = await prisma.proposal.findUnique({
+      where: { id: req.params.proposalId }
+    });
 
     if (!proposal) {
       return res.status(404).json({
@@ -351,36 +488,80 @@ router.put('/:id/proposals/:proposalId/accept', auth, authorize('client'), async
     }
 
     // Update project status and assign editor
-    project.status = 'in-progress';
-    project.editor = proposal.editor;
-    proposal.status = 'accepted';
-
-    // Reject all other proposals
-    project.proposals.forEach(p => {
-      if (p._id.toString() !== req.params.proposalId.toString()) {
-        p.status = 'rejected';
+    await prisma.project.update({
+      where: { id: req.params.id },
+      data: {
+        status: 'IN_PROGRESS',
+        editorId: proposal.editorId
       }
     });
 
-    await project.save();
+    // Accept the selected proposal
+    await prisma.proposal.update({
+      where: { id: req.params.proposalId },
+      data: { status: 'ACCEPTED' }
+    });
+
+    // Reject all other proposals
+    await prisma.proposal.updateMany({
+      where: {
+        projectId: req.params.id,
+        id: { not: req.params.proposalId }
+      },
+      data: { status: 'REJECTED' }
+    });
 
     // Emit socket event when project starts (proposal accepted)
     emitProjectCompleted({
       title: project.title,
-      id: project._id,
+      id: project.id,
       status: 'in-progress'
     });
 
-    const updatedProject = await Project.findById(req.params.id)
-      .populate('client', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('editor', 'username profile.firstName profile.lastName profile.avatar ratings');
+    // Get updated project
+    const updatedProject = await prisma.project.findUnique({
+      where: { id: req.params.id },
+      include: {
+        client: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        editor: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            ratingAverage: true,
+            ratingCount: true
+          }
+        },
+        proposals: {
+          include: {
+            editor: {
+              select: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                avatar: true
+              }
+            }
+          }
+        }
+      }
+    });
 
     res.status(200).json({
       success: true,
       message: 'Proposal accepted successfully',
-      data: {
-        project: updatedProject
-      }
+      data: { project: updatedProject }
     });
   } catch (error) {
     console.error('Accept proposal error:', error);
@@ -399,14 +580,36 @@ router.get('/client/:clientId', async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const projects = await Project.find({ client: req.params.clientId })
-      .populate('client', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('editor', 'username profile.firstName profile.lastName profile.avatar')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const projects = await prisma.project.findMany({
+      where: { clientId: req.params.clientId },
+      include: {
+        client: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        editor: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: parseInt(skip),
+      take: parseInt(limit)
+    });
 
-    const total = await Project.countDocuments({ client: req.params.clientId });
+    const total = await prisma.project.count({
+      where: { clientId: req.params.clientId }
+    });
 
     res.status(200).json({
       success: true,
@@ -437,14 +640,36 @@ router.get('/editor/:editorId', async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const projects = await Project.find({ editor: req.params.editorId })
-      .populate('client', 'username profile.firstName profile.lastName profile.avatar')
-      .populate('editor', 'username profile.firstName profile.lastName profile.avatar')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const projects = await prisma.project.findMany({
+      where: { editorId: req.params.editorId },
+      include: {
+        client: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        editor: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: parseInt(skip),
+      take: parseInt(limit)
+    });
 
-    const total = await Project.countDocuments({ editor: req.params.editorId });
+    const total = await prisma.project.count({
+      where: { editorId: req.params.editorId }
+    });
 
     res.status(200).json({
       success: true,

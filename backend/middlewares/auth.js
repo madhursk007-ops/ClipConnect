@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { prisma } = require('../config/database');
 const { verifyToken } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
@@ -10,7 +10,7 @@ const authenticate = async (req, res, next) => {
   try {
     // Get token from header
     const authHeader = req.header('Authorization');
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
@@ -30,7 +30,21 @@ const authenticate = async (req, res, next) => {
     }
 
     // Get user from database
-    const user = await User.findById(decoded.userId).select('-password -refreshToken');
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId || decoded.id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        isActive: true,
+        isSuspended: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+      }
+    });
+
     if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
@@ -82,14 +96,14 @@ const authorize = (...roles) => {
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return next();
     }
 
     const token = authHeader.replace('Bearer ', '');
     const decoded = verifyToken(token);
-    
+
     if (decoded) {
       const user = await User.findById(decoded.userId).select('-password -refreshToken');
       if (user && user.isActive) {
@@ -118,7 +132,7 @@ const checkOwnership = (resourceField = 'userId') => {
     }
 
     const resourceOwnerId = req.params[resourceField];
-    const userId = req.user._id.toString();
+    const userId = req.user.id;
 
     if (resourceOwnerId !== userId && req.user.role !== 'admin') {
       return res.status(403).json({
@@ -137,7 +151,7 @@ const checkOwnership = (resourceField = 'userId') => {
 const checkProjectAccess = async (req, res, next) => {
   try {
     const projectId = req.params.projectId || req.params.id;
-    
+
     if (!projectId) {
       return res.status(400).json({
         success: false,
@@ -145,8 +159,9 @@ const checkProjectAccess = async (req, res, next) => {
       });
     }
 
-    const Project = require('../models/Project');
-    const project = await Project.findById(projectId);
+    const project = await prisma.project.findUnique({
+      where: { id: projectId }
+    });
 
     if (!project) {
       return res.status(404).json({
@@ -155,9 +170,9 @@ const checkProjectAccess = async (req, res, next) => {
       });
     }
 
-    const userId = req.user._id.toString();
-    const isClient = project.client.toString() === userId;
-    const isEditor = project.assignedEditor && project.assignedEditor.toString() === userId;
+    const userId = req.user.id;
+    const isClient = project.clientId === userId;
+    const isEditor = project.editorId === userId;
 
     if (!isClient && !isEditor && req.user.role !== 'admin') {
       return res.status(403).json({
@@ -184,9 +199,9 @@ const checkProjectAccess = async (req, res, next) => {
 const checkMessagingAccess = async (req, res, next) => {
   try {
     const recipientId = req.body.recipient || req.params.userId;
-    const senderId = req.user._id;
+    const senderId = req.user.id;
 
-    if (recipientId === senderId.toString()) {
+    if (recipientId === senderId) {
       return res.status(400).json({
         success: false,
         message: 'You cannot send messages to yourself.',
@@ -194,7 +209,10 @@ const checkMessagingAccess = async (req, res, next) => {
     }
 
     // Check if recipient exists and is active
-    const recipient = await User.findById(recipientId);
+    const recipient = await prisma.user.findUnique({
+      where: { id: recipientId }
+    });
+
     if (!recipient || !recipient.isActive) {
       return res.status(404).json({
         success: false,
@@ -219,7 +237,7 @@ const checkMessagingAccess = async (req, res, next) => {
 const checkReviewAccess = async (req, res, next) => {
   try {
     const { project, reviewee } = req.body;
-    const reviewer = req.user._id;
+    const reviewer = req.user.id;
 
     if (!project || !reviewee) {
       return res.status(400).json({
@@ -228,8 +246,9 @@ const checkReviewAccess = async (req, res, next) => {
       });
     }
 
-    const Project = require('../models/Project');
-    const projectDoc = await Project.findById(project);
+    const projectDoc = await prisma.project.findUnique({
+      where: { id: project }
+    });
 
     if (!projectDoc) {
       return res.status(404).json({
@@ -239,7 +258,7 @@ const checkReviewAccess = async (req, res, next) => {
     }
 
     // Check if project is completed
-    if (projectDoc.status !== 'completed') {
+    if (projectDoc.status !== 'COMPLETED') {
       return res.status(400).json({
         success: false,
         message: 'You can only review completed projects.',
@@ -247,8 +266,8 @@ const checkReviewAccess = async (req, res, next) => {
     }
 
     // Check if user is involved in the project
-    const isClient = projectDoc.client.toString() === reviewer.toString();
-    const isEditor = projectDoc.assignedEditor && projectDoc.assignedEditor.toString() === reviewer.toString();
+    const isClient = projectDoc.clientId === reviewer;
+    const isEditor = projectDoc.editorId === reviewer;
 
     if (!isClient && !isEditor) {
       return res.status(403).json({
@@ -258,9 +277,9 @@ const checkReviewAccess = async (req, res, next) => {
     }
 
     // Check if reviewee is the other party in the project
-    const revieweeId = reviewee.toString();
-    const clientId = projectDoc.client.toString();
-    const editorId = projectDoc.assignedEditor ? projectDoc.assignedEditor.toString() : null;
+    const revieweeId = reviewee;
+    const clientId = projectDoc.clientId;
+    const editorId = projectDoc.editorId;
 
     if ((isClient && revieweeId !== editorId) || (isEditor && revieweeId !== clientId)) {
       return res.status(400).json({
@@ -270,10 +289,11 @@ const checkReviewAccess = async (req, res, next) => {
     }
 
     // Check if review already exists
-    const Review = require('../models/Review');
-    const existingReview = await Review.findOne({
-      reviewer,
-      project,
+    const existingReview = await prisma.review.findFirst({
+      where: {
+        reviewerId: reviewer,
+        projectId: project,
+      }
     });
 
     if (existingReview) {
@@ -299,7 +319,7 @@ const checkReviewAccess = async (req, res, next) => {
  */
 const createRateLimit = (windowMs, max, message) => {
   const rateLimit = require('express-rate-limit');
-  
+
   return rateLimit({
     windowMs,
     max,

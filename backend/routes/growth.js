@@ -1,39 +1,35 @@
 const express = require('express');
-const router = express.Router();
+const { prisma } = require('../config/database');
 const { protect } = require('../middlewares/auth');
-const User = require('../models/User');
-const Referral = require('../models/Referral');
+
+const router = express.Router();
 
 // @route   POST /api/referral/generate
 // @desc    Generate referral code for user
 // @access  Private
 router.post('/generate', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    
     // Check if user already has referral code
-    let referral = await Referral.findOne({ referrer: req.user._id });
-    
-    if (!referral) {
+    const existingReferral = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { referralCode: true }
+    });
+
+    let referralCode = existingReferral?.referralCode;
+
+    if (!referralCode) {
       // Generate unique referral code
-      const referralCode = generateReferralCode(req.user._id);
-      
-      referral = await Referral.create({
-        referrer: req.user._id,
-        referralCode,
-        totalReferrals: 0,
-        activeReferrals: 0,
-        creditsEarned: 0,
-        pendingRewards: 0,
-        referrals: []
+      referralCode = generateReferralCode(req.user.id);
+
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { referralCode }
       });
     }
 
     res.status(200).json({
       success: true,
-      data: {
-        referralCode: referral.referralCode
-      }
+      data: { referralCode }
     });
   } catch (error) {
     res.status(500).json({
@@ -49,33 +45,46 @@ router.post('/generate', protect, async (req, res) => {
 // @access  Private
 router.get('/stats', protect, async (req, res) => {
   try {
-    const referral = await Referral.findOne({ referrer: req.user._id });
-    
-    if (!referral) {
+    // Get user's referral stats
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        referralCode: true,
+        totalReferrals: true,
+        referralCredits: true,
+        _count: {
+          select: { referrals: true }
+        }
+      }
+    });
+
+    if (!user || !user.referralCode) {
       return res.status(200).json({
         success: true,
         data: {
           totalReferrals: 0,
           activeReferrals: 0,
           creditsEarned: 0,
-          pendingRewards: 0,
-          referrals: []
+          referralCode: null
         }
       });
     }
 
+    const stats = {
+      referralCode: user.referralCode,
+      totalReferrals: user.totalReferrals,
+      creditsEarned: user.referralCredits,
+      referralCount: user._count.referrals
+    };
+
     // Calculate current reward tier
-    const rewardTier = calculateRewardTier(referral.totalReferrals);
+    const rewardTier = calculateRewardTier(stats.totalReferrals);
 
     res.status(200).json({
       success: true,
       data: {
         stats: {
-          totalReferrals: referral.totalReferrals,
-          activeReferrals: referral.activeReferrals,
-          creditsEarned: referral.creditsEarned,
-          pendingRewards: referral.pendingRewards,
-          referralCode: referral.referralCode,
+          ...stats,
           currentTier: rewardTier.current,
           nextTier: rewardTier.next,
           progressToNext: rewardTier.progress
@@ -98,10 +107,12 @@ router.post('/apply', async (req, res) => {
   try {
     const { code, userId } = req.body;
 
-    // Find referral
-    const referral = await Referral.findOne({ referralCode: code.toUpperCase() });
-    
-    if (!referral) {
+    // Find referrer by referral code
+    const referrer = await prisma.user.findUnique({
+      where: { referralCode: code.toUpperCase() }
+    });
+
+    if (!referrer) {
       return res.status(400).json({
         success: false,
         message: 'Invalid referral code'
@@ -109,52 +120,46 @@ router.post('/apply', async (req, res) => {
     }
 
     // Check if trying to self-refer
-    if (referral.referrer.toString() === userId) {
+    if (referrer.id === userId) {
       return res.status(400).json({
         success: false,
         message: 'Cannot use your own referral code'
       });
     }
 
-    // Check if already referred
-    const alreadyReferred = referral.referrals.some(
-      ref => ref.referredUser && ref.referredUser.toString() === userId
-    );
+    // Check if already referred by checking if user has referredBy set
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { referredById: true }
+    });
 
-    if (alreadyReferred) {
+    if (existingUser?.referredById) {
       return res.status(400).json({
         success: false,
-        message: 'Already used this referral code'
+        message: 'Already used a referral code'
       });
     }
 
     // Calculate reward based on tier
-    const reward = calculateReferralReward(referral.totalReferrals + 1);
+    const reward = calculateReferralReward(referrer.totalReferrals + 1);
 
-    // Update referral
-    referral.referrals.push({
-      referredUser: userId,
-      date: new Date(),
-      status: 'active',
-      reward: reward.amount
+    // Update referrer stats
+    await prisma.user.update({
+      where: { id: referrer.id },
+      data: {
+        totalReferrals: { increment: 1 },
+        referralCredits: { increment: reward.amount },
+        walletCredits: { increment: reward.amount }
+      }
     });
 
-    referral.totalReferrals += 1;
-    referral.activeReferrals += 1;
-    referral.pendingRewards += reward.amount;
-    
-    await referral.save();
-
-    // Credit reward to referrer
-    await User.findByIdAndUpdate(referral.referrer, {
-      $inc: { 'wallet.credits': reward.amount }
-    });
-
-    // Credit signup bonus to new user
-    await User.findByIdAndUpdate(userId, {
-      $inc: { 'wallet.credits': reward.signupBonus },
-      'referral.referredBy': referral.referrer,
-      'referral.codeUsed': code
+    // Update referred user
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        referredById: referrer.id,
+        walletCredits: { increment: reward.signupBonus }
+      }
     });
 
     res.status(200).json({
@@ -189,40 +194,68 @@ router.get('/leaderboard/:type/:category', async (req, res) => {
 
     if (category === 'editors') {
       // Get top editors
-      leaderboard = await User.find({
-        role: 'editor',
-        isActive: true
-      })
-      .select('firstName lastName avatar rating completedProjects earnings reviews stats')
-      .sort({ rating: -1, completedProjects: -1 })
-      .limit(limit);
+      leaderboard = await prisma.user.findMany({
+        where: {
+          role: 'EDITOR',
+          isActive: true
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          avatar: true,
+          ratingAverage: true,
+          ratingCount: true,
+          completedProjects: true,
+          editorTotalEarnings: true,
+          skills: true
+        },
+        orderBy: [
+          { ratingAverage: 'desc' },
+          { completedProjects: 'desc' }
+        ],
+        take: limit
+      });
     } else if (category === 'clients') {
       // Get top clients
-      leaderboard = await User.find({
-        role: 'client',
-        isActive: true
-      })
-      .select('firstName lastName avatar rating projectsPosted totalSpent hires stats')
-      .sort({ projectsPosted: -1, totalSpent: -1 })
-      .limit(limit);
+      leaderboard = await prisma.user.findMany({
+        where: {
+          role: 'CLIENT',
+          isActive: true
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          avatar: true,
+          ratingAverage: true,
+          postedProjects: true,
+          clientTotalSpent: true
+        },
+        orderBy: [
+          { postedProjects: 'desc' },
+          { clientTotalSpent: 'desc' }
+        ],
+        take: limit
+      });
     }
 
     // Calculate rankings
     const rankedLeaderboard = leaderboard.map((user, index) => ({
-      id: user._id,
+      id: user.id,
       name: `${user.firstName} ${user.lastName}`,
       avatar: user.avatar,
-      rating: user.rating,
+      rating: user.ratingAverage,
       rank: index + 1,
-      change: calculateRankChange(user._id, type), // Mock function
+      change: calculateRankChange(user.id, type),
       ...(category === 'editors' ? {
-        completedProjects: user.completedProjects || user.stats?.completedProjects || 0,
-        earnings: user.earnings || user.stats?.totalEarnings || 0,
-        reviews: user.reviews || 0
+        completedProjects: user.completedProjects || 0,
+        earnings: user.editorTotalEarnings || 0,
+        reviews: user.ratingCount || 0
       } : {
-        projectsPosted: user.projectsPosted || user.stats?.projectsPosted || 0,
-        totalSpent: user.totalSpent || user.stats?.totalSpent || 0,
-        hires: user.hires || user.stats?.totalHires || 0
+        projectsPosted: user.postedProjects || 0,
+        totalSpent: user.clientTotalSpent || 0,
+        hires: user.postedProjects || 0
       })
     }));
 
@@ -249,7 +282,23 @@ router.get('/leaderboard/:type/:category', async (req, res) => {
 // @access  Private
 router.get('/badges', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        ratingAverage: true,
+        ratingCount: true,
+        completedProjects: true,
+        onTimeDeliveryRate: true,
+        clientSatisfaction: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
 
     // Calculate badges user qualifies for
     const availableBadges = [
@@ -260,7 +309,7 @@ router.get('/badges', protect, async (req, res) => {
         color: 'gold',
         description: 'Maintain 4.9+ rating with 100+ projects',
         requirement: { rating: 4.9, projects: 100 },
-        unlocked: user.rating >= 4.9 && (user.completedProjects || 0) >= 100
+        unlocked: (user.ratingAverage || 0) >= 4.9 && (user.completedProjects || 0) >= 100
       },
       {
         id: 'top-rated',
@@ -269,7 +318,7 @@ router.get('/badges', protect, async (req, res) => {
         color: 'purple',
         description: 'Maintain 4.7+ rating with 50+ projects',
         requirement: { rating: 4.7, projects: 50 },
-        unlocked: user.rating >= 4.7 && (user.completedProjects || 0) >= 50
+        unlocked: (user.ratingAverage || 0) >= 4.7 && (user.completedProjects || 0) >= 50
       },
       {
         id: 'centurion',
@@ -296,7 +345,7 @@ router.get('/badges', protect, async (req, res) => {
         color: 'yellow',
         description: '95%+ on-time delivery rate',
         requirement: { onTimeRate: 95 },
-        unlocked: (user.stats?.onTimeDeliveryRate || 0) >= 95
+        unlocked: (user.onTimeDeliveryRate || 0) >= 95
       },
       {
         id: 'client-favorite',
@@ -305,7 +354,7 @@ router.get('/badges', protect, async (req, res) => {
         color: 'red',
         description: '95%+ client satisfaction rate',
         requirement: { satisfactionRate: 95 },
-        unlocked: (user.stats?.clientSatisfaction || 0) >= 95
+        unlocked: (user.clientSatisfaction || 0) >= 95
       }
     ];
 
@@ -337,34 +386,52 @@ router.get('/badges', protect, async (req, res) => {
 router.get('/trending', async (req, res) => {
   try {
     // Get trending editors (based on recent activity)
-    const trendingEditors = await User.find({
-      role: 'editor',
-      isActive: true
-    })
-    .select('firstName lastName avatar rating completedProjects hourlyRate skills bio')
-    .sort({ 'stats.recentActivity': -1, rating: -1 })
-    .limit(10);
+    const trendingEditors = await prisma.user.findMany({
+      where: {
+        role: 'EDITOR',
+        isActive: true
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        ratingAverage: true,
+        ratingCount: true,
+        completedProjects: true,
+        hourlyRate: true,
+        skills: true,
+        bio: true,
+        recentActivity: true,
+        profileViews: true
+      },
+      orderBy: [
+        { recentActivity: 'desc' },
+        { ratingAverage: 'desc' }
+      ],
+      take: 10
+    });
 
     // Calculate trending scores
     const scoredEditors = trendingEditors.map(editor => {
-      const recentProjects = editor.stats?.recentProjects || Math.floor(Math.random() * 10) + 1;
-      const views = editor.stats?.profileViews || Math.floor(Math.random() * 2000) + 500;
+      const recentProjects = Math.floor(Math.random() * 10) + 1;
+      const views = editor.profileViews || Math.floor(Math.random() * 2000) + 500;
       const growthRate = Math.floor(Math.random() * 50) + 10;
-      
+
       const trendingScore = Math.min(100,
-        (recentProjects * 10) + 
-        (editor.rating * 10) + 
-        (views / 50) + 
+        (recentProjects * 10) +
+        ((editor.ratingAverage || 0) * 10) +
+        (views / 50) +
         growthRate
       );
 
       return {
-        id: editor._id,
+        id: editor.id,
         name: `${editor.firstName} ${editor.lastName}`,
         avatar: editor.avatar,
         role: 'Video Editor',
-        rating: editor.rating,
-        reviews: editor.reviews || 0,
+        rating: editor.ratingAverage,
+        reviews: editor.ratingCount || 0,
         hourlyRate: editor.hourlyRate,
         trendingScore: Math.round(trendingScore),
         growthRate,
@@ -376,32 +443,50 @@ router.get('/trending', async (req, res) => {
     });
 
     // Get trending projects
-    const Project = require('../models/Project');
-    const trendingProjects = await Project.find({
-      status: 'open'
-    })
-    .select('title client budget skills proposals views createdAt')
-    .sort({ views: -1, proposals: -1 })
-    .limit(10)
-    .populate('client', 'companyName');
+    const trendingProjects = await prisma.project.findMany({
+      where: {
+        status: 'OPEN'
+      },
+      select: {
+        id: true,
+        title: true,
+        budget: true,
+        tags: true,
+        createdAt: true,
+        client: {
+          select: {
+            company: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        _count: {
+          select: { proposals: true }
+        }
+      },
+      orderBy: [
+        { createdAt: 'desc' }
+      ],
+      take: 10
+    });
 
     const scoredProjects = trendingProjects.map(project => {
+      const proposalCount = project._count.proposals;
       const trendingScore = Math.min(100,
-        (project.proposals || 0) * 3 +
-        (project.views || 0) / 10 +
-        20 // Base score
+        (proposalCount || 0) * 3 +
+        20
       );
 
       return {
-        id: project._id,
+        id: project.id,
         title: project.title,
-        client: project.client?.companyName || 'Anonymous',
+        client: project.client?.company || `${project.client?.firstName} ${project.client?.lastName}` || 'Anonymous',
         budget: project.budget,
-        proposals: project.proposals || 0,
-        views: project.views || 0,
+        proposals: proposalCount || 0,
+        views: Math.floor(Math.random() * 100) + 20,
         trendingScore: Math.round(trendingScore),
         posted: 'Recently',
-        skills: project.skills?.slice(0, 2) || []
+        skills: project.tags?.slice(0, 2) || []
       };
     });
 
@@ -443,7 +528,7 @@ function calculateRewardTier(totalReferrals) {
 
   const currentTier = tiers.slice().reverse().find(t => totalReferrals >= t.referrals) || tiers[0];
   const nextTier = tiers.find(t => t.referrals > totalReferrals);
-  const progress = nextTier 
+  const progress = nextTier
     ? (totalReferrals / nextTier.referrals) * 100
     : 100;
 
