@@ -202,17 +202,18 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 px-4">
-        <div className="max-w-7xl mx-auto">
-          <motion.div className="text-center mb-16" {...fadeInUp}>
-            <span className="text-primary-400 text-sm font-semibold uppercase tracking-wider">Features</span>
-            <h2 className="text-4xl font-bold text-white mt-2 mb-4">Why Choose ClipConnect?</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
+      <section className="relative overflow-hidden px-4 py-24 sm:px-6 lg:px-8 lg:py-28">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.015] via-transparent to-primary-500/[0.035]" />
+        <div className="relative mx-auto max-w-7xl">
+          <motion.div className="mx-auto mb-16 max-w-2xl text-center" {...fadeInUp}>
+            <span className="text-xs font-bold uppercase tracking-[0.24em] text-primary-300">Everything in one place</span>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">Why Choose ClipConnect?</h2>
+            <p className="mx-auto mt-5 max-w-2xl leading-7 text-gray-400">
               Everything you need to find, hire, and collaborate with professional video editors
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid gap-5 md:grid-cols-3 lg:gap-6">
             {[
               { icon: Users, title: 'Expert Editors', desc: 'Access thousands of vetted video editing professionals with proven portfolios.' },
               { icon: Shield, title: 'Secure Payments', desc: 'Your payments are protected. Release funds only when satisfied with the work.' },
@@ -222,13 +223,13 @@ const Landing = () => {
                 key={feature.title}
                 {...fadeInUp}
                 transition={{ delay: i * 0.1 }}
-                className="glass-morphism p-8 rounded-2xl border border-white/5 hover:border-primary-500/20 transition-all duration-300 group"
+                className="group rounded-3xl border border-white/[0.08] bg-white/[0.035] p-7 shadow-lg shadow-black/10 transition-all duration-300 hover:-translate-y-1 hover:border-primary-400/30 hover:bg-white/[0.055] hover:shadow-xl hover:shadow-primary-950/20 sm:p-8"
               >
-                <div className="w-14 h-14 bg-gradient-to-r from-primary-500 to-accent-400 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <div className="mb-7 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary-300/15 bg-gradient-to-br from-primary-500/20 to-accent-400/10 transition-transform duration-300 group-hover:scale-110">
                   <feature.icon className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-                <p className="text-gray-400">{feature.desc}</p>
+                <h3 className="mb-3 text-xl font-semibold tracking-tight text-white">{feature.title}</h3>
+                <p className="leading-7 text-gray-400">{feature.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -236,12 +237,12 @@ const Landing = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-24 px-4 bg-dark-800/50">
-        <div className="max-w-7xl mx-auto">
-          <motion.div className="text-center mb-16" {...fadeInUp}>
-            <span className="text-primary-400 text-sm font-semibold uppercase tracking-wider">Process</span>
-            <h2 className="text-4xl font-bold text-white mt-2 mb-4">How It Works</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
+      <section className="relative overflow-hidden border-y border-white/[0.06] bg-white/[0.02] px-4 py-24 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
+          <motion.div className="mx-auto mb-16 max-w-2xl text-center" {...fadeInUp}>
+            <span className="text-xs font-bold uppercase tracking-[0.24em] text-primary-300">A simple process</span>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">How It Works</h2>
+            <p className="mx-auto mt-5 max-w-2xl leading-7 text-gray-400">
               Get started in three simple steps
             </p>
           </motion.div>
@@ -258,11 +259,11 @@ const Landing = () => {
                 transition={{ delay: i * 0.1 }}
                 className="text-center"
               >
-                <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-primary-500 to-accent-400 rounded-full flex items-center justify-center">
-                  <span className="text-2xl font-bold text-white">{item.step}</span>
+                <div className="relative mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary-300/20 bg-gradient-to-br from-primary-500/20 to-accent-400/10 shadow-inner-glow">
+                  <span className="font-heading text-xl font-bold text-primary-200">{item.step}</span>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-3">{item.title}</h3>
-                <p className="text-gray-400">{item.desc}</p>
+                <h3 className="mb-3 text-xl font-semibold text-white">{item.title}</h3>
+                <p className="mx-auto max-w-xs leading-7 text-gray-400">{item.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -270,11 +271,11 @@ const Landing = () => {
       </section>
 
       {/* Testimonials */}
-      <section className="py-24 px-4">
-        <div className="max-w-7xl mx-auto">
-          <motion.div className="text-center mb-16" {...fadeInUp}>
-            <span className="text-primary-400 text-sm font-semibold uppercase tracking-wider">Testimonials</span>
-            <h2 className="text-4xl font-bold text-white mt-2 mb-4">Loved by Creators</h2>
+      <section className="px-4 py-24 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
+          <motion.div className="mx-auto mb-16 max-w-2xl text-center" {...fadeInUp}>
+            <span className="text-xs font-bold uppercase tracking-[0.24em] text-primary-300">Community stories</span>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">Loved by Creators</h2>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -287,14 +288,14 @@ const Landing = () => {
                 key={testimonial.name}
                 {...fadeInUp}
                 transition={{ delay: i * 0.1 }}
-                className="glass-morphism p-8 rounded-2xl border border-white/5"
+                className="rounded-3xl border border-white/[0.08] bg-white/[0.035] p-7 shadow-lg shadow-black/10 sm:p-8"
               >
                 <div className="flex items-center mb-4">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Star key={star} className="w-5 h-5 text-yellow-400 fill-current" />
                   ))}
                 </div>
-                <p className="text-gray-300 mb-6">"{testimonial.text}"</p>
+                <p className="mb-7 min-h-20 text-base leading-7 text-gray-300">“{testimonial.text}”</p>
                 <div className="flex items-center">
                   <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-accent-400 rounded-full flex items-center justify-center">
                     <span className="text-white font-semibold">{testimonial.name[0]}</span>
@@ -311,15 +312,18 @@ const Landing = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-4">
+      <section className="px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <motion.div
           {...fadeInUp}
-          className="max-w-4xl mx-auto glass-morphism p-12 rounded-3xl border border-white/10 text-center relative overflow-hidden"
+          className="relative mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#11111b] px-6 py-16 text-center shadow-2xl shadow-black/20 sm:px-12 lg:py-20"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-accent-400/10"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-500/20 via-transparent to-accent-400/15" />
+          <div className="absolute -left-24 -top-32 h-72 w-72 rounded-full bg-primary-500/20 blur-[100px]" />
+          <div className="absolute -bottom-36 -right-20 h-80 w-80 rounded-full bg-accent-400/15 blur-[110px]" />
           <div className="relative z-10">
-            <h2 className="text-4xl font-bold text-white mb-4">Ready to Get Started?</h2>
-            <p className="text-gray-400 mb-8 max-w-xl mx-auto">
+            <span className="mb-4 inline-flex rounded-full border border-primary-300/20 bg-primary-400/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary-200">Make your next move</span>
+            <h2 className="mx-auto mb-5 max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">Ready to Get Started?</h2>
+            <p className="mx-auto mb-9 max-w-xl leading-7 text-gray-400">
               Join thousands of creators and editors already transforming video content on ClipConnect.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -341,9 +345,9 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-4 border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+      <footer className="border-t border-white/[0.08] bg-[#08080d] px-4 pb-8 pt-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-accent-400 rounded-lg flex items-center justify-center">
@@ -356,9 +360,9 @@ const Landing = () => {
               </p>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-4">Platform</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/marketplace" className="hover:text-white">Marketplace</Link></li>
+              <h4 className="mb-5 text-sm font-semibold uppercase tracking-wider text-white">Platform</h4>
+              <ul className="space-y-3 text-sm text-gray-400">
+                <li><Link to="/marketplace" className="transition-colors duration-200 hover:text-primary-300">Marketplace</Link></li>
                 <li><Link to="/projects" className="hover:text-white">Projects</Link></li>
                 <li><Link to="/how-it-works" className="hover:text-white">How It Works</Link></li>
               </ul>
@@ -379,7 +383,7 @@ const Landing = () => {
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-white/5 text-center text-gray-400 text-sm">
+          <div className="flex flex-col gap-3 border-t border-white/[0.08] pt-7 text-center text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between sm:text-left">
             © 2026 ClipConnect. All rights reserved.
           </div>
         </div>
