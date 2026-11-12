@@ -158,13 +158,13 @@ const Navbar = () => {
             ) : (
               <div className="flex items-center space-x-3">
                 <Link
-                  to="/auth/login"
+                  to="/login"
                   className="btn btn-ghost btn-sm"
                 >
                   Sign In
                 </Link>
                 <Link
-                  to="/auth/register"
+                  to="/register"
                   className="btn btn-primary btn-sm"
                 >
                   Get Started
@@ -235,14 +235,14 @@ const Navbar = () => {
                 ) : (
                   <>
                     <Link
-                      to="/auth/login"
+                      to="/login"
                       onClick={() => setIsMenuOpen(false)}
                       className="block px-4 py-3 text-gray-400 hover:bg-white/5 rounded-lg"
                     >
                       Sign In
                     </Link>
                     <Link
-                      to="/auth/register"
+                      to="/register"
                       onClick={() => setIsMenuOpen(false)}
                       className="block px-4 py-3 bg-gradient-to-r from-primary-500 to-accent-400 text-white rounded-lg"
                     >
