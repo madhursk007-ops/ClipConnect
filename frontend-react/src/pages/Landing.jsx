@@ -237,7 +237,7 @@ const Landing = () => {
       </section>
 
       {/* How It Works */}
-      <section className="relative overflow-hidden border-y border-white/[0.06] bg-white/[0.02] px-4 py-24 sm:px-6 lg:px-8 lg:py-28">
+      <section id="how-it-works" className="relative scroll-mt-24 overflow-hidden border-y border-white/[0.06] bg-white/[0.02] px-4 py-24 sm:px-6 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <motion.div className="mx-auto mb-16 max-w-2xl text-center" {...fadeInUp}>
             <span className="text-xs font-bold uppercase tracking-[0.24em] text-primary-300">A simple process</span>
@@ -364,22 +364,21 @@ const Landing = () => {
               <ul className="space-y-3 text-sm text-gray-400">
                 <li><Link to="/marketplace" className="transition-colors duration-200 hover:text-primary-300">Marketplace</Link></li>
                 <li><Link to="/projects" className="hover:text-white">Projects</Link></li>
-                <li><Link to="/how-it-works" className="hover:text-white">How It Works</Link></li>
+                <li><a href="#how-it-works" className="transition-colors duration-200 hover:text-primary-300">How It Works</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/about" className="hover:text-white">About</Link></li>
-                <li><Link to="/blog" className="hover:text-white">Blog</Link></li>
-                <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
+              <h4 className="mb-5 text-sm font-semibold uppercase tracking-wider text-white">For creators</h4>
+              <ul className="space-y-3 text-sm text-gray-400">
+                <li><Link to="/register?role=client" className="transition-colors duration-200 hover:text-primary-300">Hire an editor</Link></li>
+                <li><Link to="/marketplace" className="transition-colors duration-200 hover:text-primary-300">Explore editors</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/privacy" className="hover:text-white">Privacy</Link></li>
-                <li><Link to="/terms" className="hover:text-white">Terms</Link></li>
+              <h4 className="mb-5 text-sm font-semibold uppercase tracking-wider text-white">For editors</h4>
+              <ul className="space-y-3 text-sm text-gray-400">
+                <li><Link to="/register?role=editor" className="transition-colors duration-200 hover:text-primary-300">Join as an editor</Link></li>
+                <li><Link to="/login" className="transition-colors duration-200 hover:text-primary-300">Sign in</Link></li>
               </ul>
             </div>
           </div>
