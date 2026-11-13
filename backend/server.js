@@ -88,7 +88,7 @@ const server = http.createServer(app);
 // Initialize Socket.io
 initializeSocket(server);
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Socket.io ready for real-time connections`);
 });
