@@ -128,23 +128,7 @@ router.get('/:id', async (req, res) => {
             ratingCount: true
           }
         },
-        proposals: {
-          include: {
-            editor: {
-              select: {
-                id: true,
-                username: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
-                ratingAverage: true,
-                ratingCount: true,
-                hourlyRate: true
-              }
-            }
-          },
-          orderBy: { submittedAt: 'desc' }
-        },
+
         attachments: true,
         milestones: true,
         payments: true
@@ -403,7 +387,7 @@ router.post('/:id/proposals', protect, authorize('editor'), async (req, res) => 
     }
 
     // Create proposal
-    await prisma.proposal.create({
+    const createdProposal = await prisma.proposal.create({
       data: {
         projectId: req.params.id,
         editorId: req.user.id,
@@ -413,34 +397,10 @@ router.post('/:id/proposals', protect, authorize('editor'), async (req, res) => 
       }
     });
 
-    // Get updated project with proposals
-    const updatedProject = await prisma.project.findUnique({
-      where: { id: req.params.id },
-      include: {
-        proposals: {
-          include: {
-            editor: {
-              select: {
-                id: true,
-                username: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
-                ratingAverage: true,
-                ratingCount: true,
-                hourlyRate: true
-              }
-            }
-          },
-          orderBy: { submittedAt: 'desc' }
-        }
-      }
-    });
-
     res.status(201).json({
       success: true,
       message: 'Proposal submitted successfully',
-      data: { project: updatedProject }
+      data: { proposal: createdProposal }
     });
   } catch (error) {
     console.error('Submit proposal error:', error);
@@ -475,41 +435,46 @@ router.put('/:id/proposals/:proposalId/accept', protect, authorize('client'), as
       });
     }
 
-    // Find the proposal
+    // Find the proposal and ensure it belongs to this project.
     const proposal = await prisma.proposal.findUnique({
       where: { id: req.params.proposalId }
     });
 
-    if (!proposal) {
+    if (!proposal || proposal.projectId !== req.params.id) {
       return res.status(404).json({
         success: false,
-        message: 'Proposal not found'
+        message: 'Proposal not found for this project'
       });
     }
 
-    // Update project status and assign editor
-    await prisma.project.update({
-      where: { id: req.params.id },
-      data: {
-        status: 'IN_PROGRESS',
-        editorId: proposal.editorId
-      }
-    });
+    if (project.status !== 'OPEN') {
+      return res.status(400).json({
+        success: false,
+        message: 'This project is no longer accepting proposals'
+      });
+    }
 
-    // Accept the selected proposal
-    await prisma.proposal.update({
-      where: { id: req.params.proposalId },
-      data: { status: 'ACCEPTED' }
-    });
-
-    // Reject all other proposals
-    await prisma.proposal.updateMany({
-      where: {
-        projectId: req.params.id,
-        id: { not: req.params.proposalId }
-      },
-      data: { status: 'REJECTED' }
-    });
+    // Keep project assignment and proposal decisions consistent.
+    await prisma.$transaction([
+      prisma.project.update({
+        where: { id: req.params.id },
+        data: {
+          status: 'IN_PROGRESS',
+          editorId: proposal.editorId
+        }
+      }),
+      prisma.proposal.update({
+        where: { id: req.params.proposalId },
+        data: { status: 'ACCEPTED' }
+      }),
+      prisma.proposal.updateMany({
+        where: {
+          projectId: req.params.id,
+          id: { not: req.params.proposalId }
+        },
+        data: { status: 'REJECTED' }
+      })
+    ]);
 
     // Emit socket event when project starts (proposal accepted)
     emitProjectCompleted({
