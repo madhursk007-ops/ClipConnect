@@ -338,6 +338,64 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/projects/:id/proposals
+// @desc    Get proposals for a project (owning client only)
+// @access  Private
+router.get('/:id/proposals', protect, authorize('client'), async (req, res) => {
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, clientId: true }
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (project.clientId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only view proposals for your own projects'
+      });
+    }
+
+    const proposals = await prisma.proposal.findMany({
+      where: { projectId: req.params.id },
+      include: {
+        editor: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            ratingAverage: true,
+            ratingCount: true,
+            hourlyRate: true,
+            skills: true,
+            experience: true
+          }
+        }
+      },
+      orderBy: { submittedAt: 'desc' }
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: { proposals }
+    });
+  } catch (error) {
+    console.error('Get project proposals error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while retrieving proposals'
+    });
+  }
+});
+
 // @route   POST /api/projects/:id/proposals
 // @desc    Submit a proposal (editors only)
 // @access  Private
