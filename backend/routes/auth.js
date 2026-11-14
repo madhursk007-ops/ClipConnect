@@ -25,7 +25,7 @@ const generateRefreshToken = (id) => jwt.sign(
 const hashRefreshToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 const publicUser = (user) => {
-  const { password, refreshToken, passwordResetToken, twoFactorSecret, ...safeUser } = user;
+  const { password, refreshToken, passwordResetToken, passwordResetExpires, verificationToken, twoFactorSecret, ...safeUser } = user;
   return safeUser;
 };
 
@@ -234,8 +234,7 @@ router.get('/me', protect, async (req, res) => {
       success: true,
       data: {
         user: {
-          ...user,
-          password: undefined,
+          ...publicUser(user),
         }
       }
     });
