@@ -130,8 +130,7 @@ router.get('/:id', async (req, res) => {
         },
 
         attachments: true,
-        milestones: true,
-        payments: true
+        milestones: true
       }
     });
 
@@ -242,7 +241,7 @@ router.post('/', protect, authorize('client'), async (req, res) => {
 // @route   PUT /api/projects/:id
 // @desc    Update project (client only)
 // @access  Private
-router.put('/:id', protect, async (req, res) => {
+router.put('/:id', protect, authorize('client'), async (req, res) => {
   try {
     const project = await prisma.project.findUnique({
       where: { id: req.params.id }
