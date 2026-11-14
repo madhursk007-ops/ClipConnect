@@ -16,7 +16,6 @@ function requireStripe(res) {
   return false;
 }
 
-// Subscription plans configuration
 const SUBSCRIPTION_PLANS = {
   free: {
     name: 'Free',
@@ -90,17 +89,25 @@ router.get('/current', protect, async (req, res) => {
         stripeCustomerId: true,
         stripeSubscriptionId: true,
         subscriptionPeriodEnd: true,
-        cancelAtPeriodEnd: true
+        cancelAtPeriodEnd: true,
+        projectsPosted: true,
+        applicationsSubmitted: true,
+        messagesSent: true,
+        storageUsed: true
       }
     });
 
-    const planType = user.subscriptionPlan || 'free';
-    const plan = SUBSCRIPTION_PLANS[planType];
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const planType = String(user.subscriptionPlan || 'FREE').toLowerCase();
+    const plan = SUBSCRIPTION_PLANS[planType] || SUBSCRIPTION_PLANS.free;
     const usage = {
-      projectsPosted: user.stats?.projectsPosted || 0,
-      applicationsSubmitted: user.stats?.applicationsSubmitted || 0,
+      projectsPosted: user.projectsPosted || 0,
+      applicationsSubmitted: user.applicationsSubmitted || 0,
       storageUsed: user.storageUsed || 0,
-      messagesSent: user.stats?.messagesSent || 0
+      messagesSent: user.messagesSent || 0
     };
 
     res.status(200).json({
@@ -114,7 +121,7 @@ router.get('/current', protect, async (req, res) => {
           features: plan.features,
           limits: plan.limits
         },
-        status: user.subscriptionStatus || 'active',
+        status: String(user.subscriptionStatus || 'ACTIVE').toLowerCase(),
         currentPeriodEnd: user.subscriptionPeriodEnd,
         cancelAtPeriodEnd: user.cancelAtPeriodEnd || false,
         usage,
@@ -231,13 +238,21 @@ router.post('/reactivate', protect, async (req, res) => {
 // @route   POST /api/subscription/webhook
 // @desc    Stripe webhook handler
 // @access  Public
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   if (!requireStripe(res)) return;
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    return res.status(503).json({
+      success: false,
+      message: 'Stripe webhook configuration is required.'
+    });
+  }
+
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    const rawBody = req.rawBody || req.body;
+    event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
@@ -245,12 +260,17 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const userId = session.metadata.userId;
-    const planType = session.metadata.planType;
+    const planType = String(session.metadata.planType || 'free').toUpperCase();
+
+    if (!['PRO', 'PREMIUM'].includes(planType)) {
+      return res.status(400).json({ success: false, message: 'Invalid subscription plan in webhook' });
+    }
+
     await prisma.user.update({
       where: { id: userId },
       data: {
         subscriptionPlan: planType,
-        subscriptionStatus: 'active',
+        subscriptionStatus: 'ACTIVE',
         stripeCustomerId: session.customer,
         stripeSubscriptionId: session.subscription
       }
@@ -259,7 +279,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     const deletedSub = event.data.object;
     await prisma.user.updateMany({
       where: { stripeCustomerId: deletedSub.customer },
-      data: { subscriptionPlan: 'free', subscriptionStatus: 'canceled' }
+      data: { subscriptionPlan: 'FREE', subscriptionStatus: 'CANCELED' }
     });
   }
 
