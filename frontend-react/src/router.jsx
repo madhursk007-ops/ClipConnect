@@ -19,31 +19,50 @@ import Chat from '@pages/chat/Chat';
 import Settings from '@pages/settings/Settings';
 import NotFound from '@pages/NotFound';
 
-// Protected Route Component
+const LoadingScreen = () => (
+  <div className="min-h-screen bg-dark-900 flex items-center justify-center">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+  </div>
+);
+
+const dashboardPathFor = (role) =>
+  String(role || '').toLowerCase() === 'editor'
+    ? '/editor/dashboard'
+    : '/client/dashboard';
+
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    return <Navigate to="/dashboard" replace />;
+  const role = String(user?.role || '').toLowerCase();
+  if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
+    return <Navigate to={dashboardPathFor(role)} replace />;
   }
 
   return children;
 };
 
+const DashboardRedirect = () => {
+  const { isAuthenticated, user, isLoading } = useAuth();
+
+  if (isLoading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  return <Navigate to={dashboardPathFor(user?.role)} replace />;
+};
+
+const dashboardRoute = (role) => ({
+  element: (
+    <ProtectedRoute allowedRoles={[role]}>
+      <DashboardLayout />
+    </ProtectedRoute>
+  ),
+  children: [{ index: true, element: <Dashboard /> }],
+});
+
 const router = createBrowserRouter([
-  // Public Routes
   {
     path: '/',
     element: <MainLayout />,
@@ -53,8 +72,6 @@ const router = createBrowserRouter([
       { path: 'profile/:id', element: <Profile /> },
     ],
   },
-
-  // Auth Routes
   {
     path: '/',
     element: <AuthLayout />,
@@ -64,20 +81,12 @@ const router = createBrowserRouter([
     ],
   },
 
-  // Protected Dashboard Routes
-  {
-    path: '/dashboard',
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout />
-      </ProtectedRoute>
-    ),
-    children: [
-      { index: true, element: <Dashboard /> },
-    ],
-  },
+  // Keep the original dashboard URL working while routing each role
+  // to its own explicit workspace entry point.
+  { path: '/dashboard', element: <DashboardRedirect /> },
+  { path: '/client/dashboard', ...dashboardRoute('client') },
+  { path: '/editor/dashboard', ...dashboardRoute('editor') },
 
-  // Protected Project Routes
   {
     path: '/projects',
     element: (
@@ -90,8 +99,6 @@ const router = createBrowserRouter([
       { path: ':id', element: <ProjectDetail /> },
     ],
   },
-
-  // Protected Chat Route
   {
     path: '/chat',
     element: (
@@ -104,8 +111,6 @@ const router = createBrowserRouter([
       { path: ':userId', element: <Chat /> },
     ],
   },
-
-  // Protected Settings Route
   {
     path: '/settings',
     element: (
@@ -113,12 +118,8 @@ const router = createBrowserRouter([
         <DashboardLayout />
       </ProtectedRoute>
     ),
-    children: [
-      { index: true, element: <Settings /> },
-    ],
+    children: [{ index: true, element: <Settings /> }],
   },
-
-  // 404 Not Found
   { path: '*', element: <NotFound /> },
 ]);
 
