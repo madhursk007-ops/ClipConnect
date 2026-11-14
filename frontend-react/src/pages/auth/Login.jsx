@@ -124,6 +124,18 @@ const Login = () => {
           Continue with Google
         </button>
 
+        {/* Seeded demo accounts for local/preview testing */}
+        <div className="mt-6 rounded-xl border border-white/[0.08] bg-white/[0.025] p-4">
+          <div className="mb-3">
+            <p className="text-sm font-semibold text-white">Try a demo workspace</p>
+            <p className="mt-1 text-xs leading-5 text-gray-400">These accounts are created by the backend seed script. Run <code className="text-primary-300">npm run db:seed</code> after configuring the database.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => setFormData({ email: 'client@test.com', password: 'client123' })} className="rounded-lg border border-white/10 px-3 py-2.5 text-sm font-medium text-gray-200 transition hover:border-primary-400/40 hover:bg-primary-400/10">Fill Client demo</button>
+            <button type="button" onClick={() => setFormData({ email: 'editor@test.com', password: 'editor123' })} className="rounded-lg border border-white/10 px-3 py-2.5 text-sm font-medium text-gray-200 transition hover:border-primary-400/40 hover:bg-primary-400/10">Fill Editor demo</button>
+          </div>
+        </div>
+
         {/* Sign Up Link */}
         <p className="text-center mt-6 text-gray-400">
           Don't have an account?{' '}
