@@ -1,7 +1,7 @@
 const express = require('express');
 const { prisma } = require('../config/database');
 const { protect, authorize } = require('../middlewares/auth');
-const { emitProjectCreated, emitProjectCompleted } = require('../config/socket');
+const { emitProjectCreated, emitProjectStarted } = require('../config/socket');
 
 const router = express.Router();
 
@@ -172,8 +172,10 @@ router.post('/', protect, authorize('client'), async (req, res) => {
       tags
     } = req.body;
 
-    // Validation
-    if (!title || !description || !category || !budget || !deadline) {
+    // Validate required fields and numeric/date inputs before writing to the database.
+    const parsedBudget = Number(budget);
+    const parsedDeadline = new Date(deadline);
+    if (!title?.trim() || !description?.trim() || !category || !Number.isFinite(parsedBudget) || parsedBudget <= 0 || !deadline || Number.isNaN(parsedDeadline.getTime()) || parsedDeadline <= new Date()) {
       return res.status(400).json({
         success: false,
         message: 'Please provide all required fields'
@@ -187,8 +189,8 @@ router.post('/', protect, authorize('client'), async (req, res) => {
         description,
         clientId: req.user.id,
         category: category.toUpperCase().replace('-', '_'),
-        budget: parseFloat(budget),
-        deadline: new Date(deadline),
+        budget: parsedBudget,
+        deadline: parsedDeadline,
         duration: requirements?.duration,
         format: requirements?.format,
         style: requirements?.style,
@@ -403,7 +405,8 @@ router.post('/:id/proposals', protect, authorize('editor'), async (req, res) => 
   try {
     const { message, estimatedTime, proposedBudget } = req.body;
 
-    if (!message || !estimatedTime || !proposedBudget) {
+    const parsedProposalBudget = Number(proposedBudget);
+    if (!message?.trim() || !estimatedTime?.trim() || !Number.isFinite(parsedProposalBudget) || parsedProposalBudget <= 0) {
       return res.status(400).json({
         success: false,
         message: 'Please provide all required fields'
@@ -451,7 +454,7 @@ router.post('/:id/proposals', protect, authorize('editor'), async (req, res) => 
         editorId: req.user.id,
         message,
         estimatedTime,
-        proposedBudget: parseFloat(proposedBudget)
+        proposedBudget: parsedProposalBudget
       }
     });
 
@@ -512,6 +515,13 @@ router.put('/:id/proposals/:proposalId/accept', protect, authorize('client'), as
       });
     }
 
+    if (proposal.status !== 'PENDING') {
+      return res.status(400).json({
+        success: false,
+        message: 'This proposal has already been processed'
+      });
+    }
+
     // Keep project assignment and proposal decisions consistent.
     await prisma.$transaction([
       prisma.project.update({
@@ -535,7 +545,7 @@ router.put('/:id/proposals/:proposalId/accept', protect, authorize('client'), as
     ]);
 
     // Emit socket event when project starts (proposal accepted)
-    emitProjectCompleted({
+    emitProjectStarted({
       title: project.title,
       id: project.id,
       status: 'in-progress'
