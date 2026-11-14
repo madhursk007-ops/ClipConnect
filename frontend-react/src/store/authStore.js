@@ -102,7 +102,8 @@ const useAuthStore = create(
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
           const response = await api.get('/auth/me')
-          const user = response.data.data
+          const user = response.data?.data?.user
+          if (!user) throw new Error('User profile was missing from the authentication response')
 
           set({
             user,
@@ -126,8 +127,9 @@ const useAuthStore = create(
       updateProfile: async (profileData) => {
         set({ isLoading: true })
         try {
-          const response = await api.put('/users/profile', profileData)
-          const updatedUser = response.data.data
+          const response = await api.put('/auth/update-profile', profileData)
+          const updatedUser = response.data?.data?.user
+          if (!updatedUser) throw new Error('Updated profile was missing from the server response')
 
           set({
             user: updatedUser,
@@ -238,9 +240,10 @@ const useAuthStore = create(
 
         try {
           const response = await api.put('/users/availability')
-          const updatedUser = response.data.data
+          const updatedUser = response.data?.data?.user
+          if (!updatedUser) throw new Error('Availability update was missing from the server response')
 
-          set({ user: updatedUser })
+          set({ user: { ...user, ...updatedUser } })
           return { success: true }
         } catch (error) {
           throw error
