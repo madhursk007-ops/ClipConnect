@@ -98,6 +98,35 @@ router.get('/', async (req, res) => {
   }
 });
 
+// @route   GET /api/projects/editor/proposals/mine
+// @desc    Get proposals submitted by the authenticated editor
+// @access  Private (editors only)
+router.get('/editor/proposals/mine', protect, authorize('editor'), async (req, res) => {
+  try {
+    const proposals = await prisma.proposal.findMany({
+      where: { editorId: req.user.id },
+      include: {
+        project: {
+          include: {
+            client: {
+              select: { id: true, username: true, firstName: true, lastName: true, avatar: true }
+            }
+          }
+        }
+      },
+      orderBy: { submittedAt: 'desc' }
+    });
+
+    return res.status(200).json({ success: true, data: { proposals } });
+  } catch (error) {
+    console.error('Get editor proposals error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while retrieving your proposals'
+    });
+  }
+});
+
 // @route   GET /api/projects/:id
 // @desc    Get project by ID
 // @access  Public
