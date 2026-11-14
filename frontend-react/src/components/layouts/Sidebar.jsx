@@ -21,10 +21,11 @@ const Sidebar = () => {
 
   const isEditor = user?.role === 'editor';
   const isClient = user?.role === 'client';
+  const dashboardPath = isEditor ? '/editor/dashboard' : '/client/dashboard';
 
   const navItems = [
     { 
-      path: '/dashboard', 
+      path: dashboardPath, 
       label: 'Dashboard', 
       icon: LayoutDashboard 
     },
