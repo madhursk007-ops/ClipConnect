@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -69,10 +69,7 @@ api.interceptors.response.use(
             // Try to refresh token
             const refreshToken = localStorage.getItem('refreshToken')
             if (refreshToken) {
-              const response = await axios.post(
-                `${process.env.REACT_APP_API_URL}/auth/refresh`,
-                { refreshToken }
-              )
+              const response = await api.post('/auth/refresh', { refreshToken })
               
               const { token: newToken } = response.data.data
               
