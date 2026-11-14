@@ -135,6 +135,8 @@ const Projects = () => {
           <input
             type="text"
             placeholder="Search projects..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 transition-all"
           />
         </div>
@@ -156,6 +158,15 @@ const Projects = () => {
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <div role="alert" className="flex items-center justify-between gap-4 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-300">
+          <span>{loadError}</span>
+          <button onClick={loadProjects} className="font-medium underline">Try again</button>
+        </div>
+      )}
+
+      {loading && <p className="py-8 text-center text-gray-400">Loading projects…</p>}
 
       {/* Projects List */}
       <div className="space-y-4">
@@ -212,9 +223,12 @@ const Projects = () => {
                 {/* Actions */}
                 <div className="flex items-center gap-3">
                   {normalizedStatus === 'open' && isEditor && (
-                    <button className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-primary-500/25 transition-all">
+                    <Link
+                      to={`/projects/${project.id || project._id}`}
+                      className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-primary-500/25 transition-all"
+                    >
                       Apply Now
-                    </button>
+                    </Link>
                   )}
                   
                   <Link
@@ -300,6 +314,10 @@ const Projects = () => {
                     <label className="block text-sm font-medium text-gray-400 mb-2">Budget ($)</label>
                     <input
                       type="number"
+                      name="budget"
+                      min="1"
+                      step="0.01"
+                      required
                       placeholder="1500"
                       className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary-500/50"
                     />
@@ -308,6 +326,9 @@ const Projects = () => {
                     <label className="block text-sm font-medium text-gray-400 mb-2">Deadline</label>
                     <input
                       type="date"
+                      name="deadline"
+                      min={new Date().toISOString().slice(0, 10)}
+                      required
                       className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary-500/50"
                     />
                   </div>
@@ -315,7 +336,7 @@ const Projects = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Category</label>
-                  <select className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white focus:outline-none focus:border-primary-500/50">
+                  <select name="category" required className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white focus:outline-none focus:border-primary-500/50">
                     <option>Commercial</option>
                     <option>YouTube</option>
                     <option>Music Video</option>
@@ -334,9 +355,10 @@ const Projects = () => {
                   </button>
                   <button
                     type="submit"
+                    disabled={submitting}
                     className="flex-1 py-3 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-primary-500/25 transition-all"
                   >
-                    Post Project
+                    {submitting ? 'Posting…' : 'Post Project'}
                   </button>
                 </div>
               </form>
