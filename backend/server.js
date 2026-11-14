@@ -26,6 +26,11 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
+// Health check route — registered before API rate limiting so platform probes cannot be throttled.
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'ClipConnect API is running' });
+});
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -76,11 +81,6 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api', growthRoutes); // Growth routes include referral and leaderboard
 app.use('/api/stats', statsRoutes);
-
-// Health check route
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'ClipConnect API is running' });
-});
 
 // Serve the built React application from the same origin when deployed as one service.
 const frontendDist = path.resolve(__dirname, '../frontend-react/dist');
