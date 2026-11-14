@@ -31,10 +31,7 @@ modalExtra.addEventListener("click",e=>{
   const jump=e.target.closest("[data-jump]");
   if(demo){
     const role=demo.dataset.demoRole;
-    const isClient=role==="client";
-    showModal(isClient?"Client demo workspace":"Editor demo workspace",
-      "You are viewing a simulated "+role+" dashboard. No account was created, no credentials were checked, and no data is saved. Use the links below to explore the working sample interactions.",
-      '<div class="demo-workspace"><div class="demo-stats"><div><small>'+ (isClient?"OPEN BRIEFS":"MATCHED BRIEFS")+'</small><b>'+(isClient?"3":"3")+'</b></div><div><small>'+(isClient?"SAVED EDITORS":"SAMPLE PROFILE")+'</small><b>'+(isClient?"0":"1")+'</b></div></div><div class="role-picks"><button data-jump="'+(isClient?"projects":"discover")+'">'+(isClient?"Explore project briefs":"Explore editor profiles")+' ↗</button><button data-jump="how">How ClipConnect works</button></div></div>');
+    window.location.href=role==="client"?"client-dashboard.html":"editor-dashboard.html";
     return;
   }
   if(jump){window.location.href=jump.dataset.jump==="discover"?"discover.html":"projects.html";}
