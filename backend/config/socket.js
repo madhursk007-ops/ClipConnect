@@ -99,6 +99,19 @@ const emitProjectCreated = (project) => {
   emitStatsUpdate();
 };
 
+// Emit project started event after a proposal is accepted
+const emitProjectStarted = (project) => {
+  if (!io) return;
+
+  emitActivity({
+    type: 'project_started',
+    message: `Project \"${project.title}\" is now in progress`,
+    icon: 'play-circle'
+  });
+
+  emitStatsUpdate();
+};
+
 // Emit project completed event
 const emitProjectCompleted = (project) => {
   if (!io) return;
@@ -130,6 +143,7 @@ module.exports = {
   emitActivity,
   emitUserJoined,
   emitProjectCreated,
+  emitProjectStarted,
   emitProjectCompleted,
   emitMessageSent,
   getConnectedUsersCount: () => connectedUsers.size
