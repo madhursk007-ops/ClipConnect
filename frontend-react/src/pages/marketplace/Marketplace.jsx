@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '@hooks';
+import { userService } from '@services/api';
 
 const Marketplace = () => {
   const { user } = useAuth();
@@ -25,127 +26,60 @@ const Marketplace = () => {
     availability: ''
   });
 
-  // Mock editors data
-  const editors = [
-    {
-      _id: '1',
-      profile: {
-        firstName: 'Sarah',
-        lastName: 'Johnson',
-        bio: 'Professional video editor specializing in commercials and social content.',
-        location: 'Los Angeles, CA',
-        avatar: null
-      },
-      editorProfile: {
-        skills: ['Video Editing', 'Color Grading', 'After Effects'],
-        hourlyRate: 75,
-        experience: '8 years',
-        availability: 'Full-time'
-      },
-      ratings: 4.9,
-      totalReviews: 127,
-      completedProjects: 156
-    },
-    {
-      _id: '2',
-      profile: {
-        firstName: 'Michael',
-        lastName: 'Chen',
-        bio: 'Cinematic storytelling expert. Documentary and narrative film specialist.',
-        location: 'New York, NY',
-        avatar: null
-      },
-      editorProfile: {
-        skills: ['Documentary', 'Premiere Pro', 'DaVinci Resolve'],
-        hourlyRate: 85,
-        experience: '10 years',
-        availability: 'Part-time'
-      },
-      ratings: 4.8,
-      totalReviews: 89,
-      completedProjects: 98
-    },
-    {
-      _id: '3',
-      profile: {
-        firstName: 'Emma',
-        lastName: 'Wilson',
-        bio: 'Motion graphics designer and video editor. Creating eye-catching content.',
-        location: 'London, UK',
-        avatar: null
-      },
-      editorProfile: {
-        skills: ['Motion Graphics', 'Animation', 'After Effects'],
-        hourlyRate: 65,
-        experience: '5 years',
-        availability: 'Full-time'
-      },
-      ratings: 4.9,
-      totalReviews: 64,
-      completedProjects: 82
-    },
-    {
-      _id: '4',
-      profile: {
-        firstName: 'David',
-        lastName: 'Park',
-        bio: 'YouTube and social media content specialist. Fast turnaround times.',
-        location: 'Seoul, Korea',
-        avatar: null
-      },
-      editorProfile: {
-        skills: ['Social Media', 'YouTube', 'Fast Editing'],
-        hourlyRate: 45,
-        experience: '4 years',
-        availability: 'Full-time'
-      },
-      ratings: 4.7,
-      totalReviews: 112,
-      completedProjects: 145
-    },
-    {
-      _id: '5',
-      profile: {
-        firstName: 'Lisa',
-        lastName: 'Anderson',
-        bio: 'Corporate video and training content expert. Professional and reliable.',
-        location: 'Chicago, IL',
-        avatar: null
-      },
-      editorProfile: {
-        skills: ['Corporate', 'Training Videos', 'Final Cut Pro'],
-        hourlyRate: 55,
-        experience: '6 years',
-        availability: 'Part-time'
-      },
-      ratings: 4.8,
-      totalReviews: 76,
-      completedProjects: 93
-    },
-    {
-      _id: '6',
-      profile: {
-        firstName: 'James',
-        lastName: 'Martinez',
-        bio: 'Music video editor and colorist. Creative and artistic approach.',
-        location: 'Miami, FL',
-        avatar: null
-      },
-      editorProfile: {
-        skills: ['Music Videos', 'Color Grading', 'Cinematography'],
-        hourlyRate: 90,
-        experience: '12 years',
-        availability: 'Full-time'
-      },
-      ratings: 5.0,
-      totalReviews: 43,
-      completedProjects: 67
-    }
-  ];
+  const [editors, setEditors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  const skillOptions = ['Video Editing', 'Color Grading', 'After Effects', 'Premiere Pro', 'Motion Graphics', 'Animation', 'DaVinci Resolve', 'Social Media', 'YouTube', 'Corporate'];
+  useEffect(() => {
+    let active = true;
+    const fetchEditors = async () => {
+      setLoading(true);
+      setLoadError('');
+      try {
+        const response = await userService.getUsers({ role: 'editor', search: searchQuery || undefined, limit: 50 });
+        const users = response.data?.data?.users || [];
+        if (active) {
+          setEditors(users.map((editor) => ({
+            _id: editor.id,
+            profile: {
+              firstName: editor.firstName || '',
+              lastName: editor.lastName || '',
+              bio: editor.bio || 'Video editor on ClipConnect',
+              location: editor.location || 'Location not provided',
+              avatar: editor.avatar || null,
+            },
+            editorProfile: {
+              skills: (editor.skills || []).map((skill) => String(skill).replaceAll('_', ' ').toLowerCase().replace(/\\b\\w/g, (letter) => letter.toUpperCase())),
+              hourlyRate: Number(editor.hourlyRate || 0),
+              experience: String(editor.experience || 'INTERMEDIATE').toLowerCase().replace(/\\b\\w/g, (letter) => letter.toUpperCase()),
+              availability: editor.availability ? 'Available' : 'Unavailable',
+            },
+            ratings: Number(editor.ratingAverage || 0),
+            totalReviews: Number(editor.ratingCount || 0),
+            completedProjects: Number(editor.completedProjects || editor._count?.projectsAsEditor || 0),
+          })));
+        }
+      } catch (error) {
+        if (active) setLoadError(error.response?.data?.message || 'Unable to load editors. Please try again.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchEditors();
+    return () => { active = false; };
+  }, [searchQuery]);
+
+  const skillOptions = ['Video Editing', 'Motion Graphics', 'Color Grading', 'Audio Editing', 'Animation', 'VFX', 'Storytelling'];
   const rateOptions = ['Under $50', '$50-$75', '$75-$100', '$100+'];
   const ratingOptions = ['4.5+', '4.7+', '4.9+'];
+
+  const visibleEditors = editors.filter((editor) => {
+    const matchesSkills = filters.skills.length === 0 || filters.skills.every((skill) => editor.editorProfile.skills.includes(skill));
+    const rate = editor.editorProfile.hourlyRate;
+    const matchesRate = !filters.hourlyRate || (filters.hourlyRate === 'Under $50' && rate < 50) || (filters.hourlyRate === '$50-$75' && rate >= 50 && rate <= 75) || (filters.hourlyRate === '$75-$100' && rate > 75 && rate <= 100) || (filters.hourlyRate === '$100+' && rate > 100);
+    const minimumRating = filters.rating ? Number(filters.rating.replace('+', '')) : 0;
+    return matchesSkills && matchesRate && editor.ratings >= minimumRating;
+  });
 
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -162,7 +96,7 @@ const Marketplace = () => {
             Find Expert Video Editors
           </h1>
           <p className="text-gray-400">
-            Browse {editors.length}+ professional video editors ready to bring your vision to life
+            Browse {editors.length} professional video editors ready to bring your vision to life
           </p>
         </motion.div>
 
@@ -294,8 +228,10 @@ const Marketplace = () => {
         </motion.div>
 
         {/* Results Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {editors.map((editor, index) => (
+        {loading && <p className="py-10 text-center text-gray-400">Loading verified editor profiles…</p>}
+        {!loading && loadError && <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-300">{loadError} <button onClick={() => setSearchQuery((value) => value)} className="ml-2 underline">Retry</button></div>}
+        {!loading && !loadError && <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {visibleEditors.map((editor, index) => (
             <motion.div
               key={editor._id}
               initial={{ opacity: 0, y: 20 }}
@@ -390,7 +326,8 @@ const Marketplace = () => {
               </div>
             </motion.div>
           ))}
-        </div>
+        </div>}
+        {!loading && !loadError && visibleEditors.length === 0 && <p className="py-10 text-center text-gray-400">No editors match those filters yet. Try clearing a filter.</p>}
 
         {/* Load More */}
         <div className="mt-12 text-center">
