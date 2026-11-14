@@ -18,9 +18,27 @@ function renderProjects(){projectList.innerHTML=projects.map((p,i)=>`<article cl
 const modal=document.querySelector("#modal"),modalTitle=document.querySelector("#modal-title"),modalCopy=document.querySelector("#modal-copy"),modalExtra=document.querySelector("#modal-extra");
 function showModal(title,copy,extra=""){modalTitle.textContent=title;modalCopy.textContent=copy;modalExtra.innerHTML=extra;modal.hidden=false;document.body.style.overflow="hidden";}
 function closeModal(){modal.hidden=true;document.body.style.overflow="";}
-document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>showModal(b.dataset.open==="login"?"Welcome back":"Choose how you'd like to join","This preview is not connected to account services. Choose a role to explore the intended experience.",'<div class="role-picks"><button data-role="client">I’m a client</button><button data-role="editor">I’m an editor</button></div>')));
+document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>{
+  if(b.dataset.open==="login"){
+    showModal("Enter the demo workspace","Demo access is available without an email or password. Choose a role to explore a simulated dashboard. This does not create or authenticate a real account.",'<div class="role-picks"><button data-demo-role="client">Continue as client ↗</button><button data-demo-role="editor">Continue as editor ↗</button></div>');
+    return;
+  }
+  showModal("Explore ClipConnect","Account creation is not connected in this preview. You can explore the sample editor profiles and project briefs without signing up.",'<div class="role-picks"><button data-jump="discover">Browse sample editors</button><button data-jump="projects">Browse sample projects</button></div>');
+}));
 document.querySelector(".modal-close").addEventListener("click",closeModal);document.querySelector("#modal-ok").addEventListener("click",closeModal);modal.addEventListener("click",e=>{if(e.target===modal)closeModal()});document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
-modalExtra.addEventListener("click",e=>{const b=e.target.closest("[data-role]");if(b){closeModal();toast(b.dataset.role==="client"?"Client journey selected — demo only.":"Editor journey selected — demo only.");}});
+modalExtra.addEventListener("click",e=>{
+  const demo=e.target.closest("[data-demo-role]");
+  const jump=e.target.closest("[data-jump]");
+  if(demo){
+    const role=demo.dataset.demoRole;
+    const isClient=role==="client";
+    showModal(isClient?"Client demo workspace":"Editor demo workspace",
+      "You are viewing a simulated "+role+" dashboard. No account was created, no credentials were checked, and no data is saved. Use the links below to explore the working sample interactions.",
+      '<div class="demo-workspace"><div class="demo-stats"><div><small>'+ (isClient?"OPEN BRIEFS":"MATCHED BRIEFS")+'</small><b>'+(isClient?"3":"3")+'</b></div><div><small>'+(isClient?"SAVED EDITORS":"SAMPLE PROFILE")+'</small><b>'+(isClient?"0":"1")+'</b></div></div><div class="role-picks"><button data-jump="'+(isClient?"projects":"discover")+'">'+(isClient?"Explore project briefs":"Explore editor profiles")+' ↗</button><button data-jump="how">How ClipConnect works</button></div></div>');
+    return;
+  }
+  if(jump){closeModal();document.querySelector("#"+jump.dataset.jump)?.scrollIntoView({behavior:"smooth"});}
+});
 document.querySelector("#filters").addEventListener("click",e=>{const b=e.target.closest("[data-filter]");if(!b)return;activeFilter=b.dataset.filter;document.querySelectorAll(".filter").forEach(x=>x.classList.toggle("active",x===b));renderEditors();});
 search.addEventListener("input",renderEditors);
 grid.addEventListener("click",e=>{const save=e.target.closest("[data-save]");const view=e.target.closest("[data-contact]");if(save){const id=Number(save.dataset.save);saved.has(id)?saved.delete(id):saved.add(id);renderEditors();toast(saved.has(id)?"Saved to your shortlist.":"Removed from your shortlist.");}if(view){const p=editors.find(x=>x.id===Number(view.dataset.contact));showModal(p.name+" · "+p.role,p.bio+" This is a sample profile in the interactive preview.",'<div class="skill-tags">'+p.skills.map(x=>'<span>'+x+'</span>').join("")+'</div>');}});
