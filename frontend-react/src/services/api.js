@@ -146,7 +146,7 @@ export const authService = {
   resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
   changePassword: (passwordData) => api.put('/auth/change-password', passwordData),
   getProfile: () => api.get('/auth/me'),
-  updateProfile: (profileData) => api.put('/users/profile', profileData),
+  updateProfile: (profileData) => api.put('/auth/update-profile', profileData),
 }
 
 export const userService = {
