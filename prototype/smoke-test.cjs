@@ -7,6 +7,7 @@ const client = read("client-dashboard.html");
 const editor = read("editor-dashboard.html");
 const shared = read("workspace.js");
 const home = read("index.html");
+const landingScript = read("app.js");
 const discover = read("discover.html");
 const projects = read("projects.html");
 for (const [name, html] of [["client", client], ["editor", editor], ["home", home], ["discover", discover], ["projects", projects]]) {
