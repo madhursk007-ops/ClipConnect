@@ -1,7 +1,7 @@
 // ===== Main Application Controller =====
 class ClipConnectApp {
   constructor() {
-    this.apiBase = 'http://localhost:5000/api';
+    this.apiBase = (window.CLIPCONNECT_CONFIG?.apiBase || '/api').replace(/\/$/, '');
     this.init();
   }
 

@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const logger = require('./utils/logger');
@@ -34,12 +36,16 @@ app.use('/api/', limiter);
 // CORS configuration
 const corsOrigins = [
   'http://localhost:3000',
-  'http://127.0.0.1:51191',
   'http://127.0.0.1:3000',
-  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])
-];
+  ...(process.env.CORS_ORIGIN || '').split(','),
+  process.env.FRONTEND_URL || ''
+].map(origin => origin.trim()).filter(Boolean);
+
 app.use(cors({
-  origin: corsOrigins.map(origin => origin.trim()),
+  origin(origin, callback) {
+    if (!origin || corsOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Origin not allowed by CORS'));
+  },
   credentials: true
 }));
 
@@ -66,6 +72,18 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'ClipConnect API is running' });
 });
 
+// Serve the built React application from the same origin when deployed as one service.
+const frontendDist = path.resolve(__dirname, '../frontend-react/dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (req.path === '/api' || req.path.startsWith('/api/')) return next();
+    return res.sendFile(path.join(frontendDist, 'index.html'), (error) => {
+      if (error) next(error);
+    });
+  });
+}
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -88,7 +106,7 @@ const server = http.createServer(app);
 // Initialize Socket.io
 initializeSocket(server);
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Socket.io ready for real-time connections`);
 });

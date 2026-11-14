@@ -12,10 +12,21 @@ const logger = require('../utils/logger');
 const router = express.Router();
 
 // Generate JWT Token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
-  });
+const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, {
+  expiresIn: process.env.JWT_EXPIRE || '15m',
+});
+
+const generateRefreshToken = (id) => jwt.sign(
+  { id },
+  process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+  { expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d' }
+);
+
+const hashRefreshToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+const publicUser = (user) => {
+  const { password, refreshToken, passwordResetToken, passwordResetExpires, verificationToken, twoFactorSecret, ...safeUser } = user;
+  return safeUser;
 };
 
 // @route   POST /api/auth/register
@@ -103,22 +114,27 @@ router.post('/register', async (req, res) => {
 
     // Emit socket event for real-time stats update
     emitUserJoined({
-      name: `${user.profile.firstName} ${user.profile.lastName}`,
+      name: `${user.firstName} ${user.lastName}`,
       role: user.role
     });
 
-    // Generate token
+    // Issue a short-lived access token and store only a hash of the refresh token.
     const token = generateToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken: hashRefreshToken(refreshToken) }
+    });
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
       data: {
         user: {
-          ...user,
-          password: undefined,
+          ...publicUser(user),
         },
-        token
+        token,
+        refreshToken
       }
     });
   } catch (error) {
@@ -168,24 +184,23 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Update last login
+    // Rotate refresh credentials after a successful login.
+    const token = generateToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
     await prisma.user.update({
       where: { id: user.id },
-      data: { lastLogin: new Date() }
+      data: { lastLogin: new Date(), refreshToken: hashRefreshToken(refreshToken) }
     });
-
-    // Generate token
-    const token = generateToken(user.id);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       data: {
         user: {
-          ...user,
-          password: undefined,
+          ...publicUser(user),
         },
-        token
+        token,
+        refreshToken
       }
     });
   } catch (error) {
@@ -219,8 +234,7 @@ router.get('/me', protect, async (req, res) => {
       success: true,
       data: {
         user: {
-          ...user,
-          password: undefined,
+          ...publicUser(user),
         }
       }
     });
@@ -284,8 +298,7 @@ router.put('/update-profile', protect, async (req, res) => {
       message: 'Profile updated successfully',
       data: {
         user: {
-          ...user,
-          password: undefined,
+          ...publicUser(user),
         }
       }
     });
@@ -343,19 +356,25 @@ router.post('/refresh', async (req, res) => {
       where: { id: decoded.id }
     });
 
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || user.refreshToken !== hashRefreshToken(refreshToken)) {
       return res.status(401).json({
         success: false,
-        message: 'User not found or inactive'
+        message: 'Refresh token is invalid or expired'
       });
     }
 
     const newAccessToken = generateToken(user.id);
+    const newRefreshToken = generateRefreshToken(user.id);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken: hashRefreshToken(newRefreshToken) }
+    });
 
     res.status(200).json({
       success: true,
       data: {
-        token: newAccessToken
+        token: newAccessToken,
+        refreshToken: newRefreshToken
       }
     });
   } catch (error) {

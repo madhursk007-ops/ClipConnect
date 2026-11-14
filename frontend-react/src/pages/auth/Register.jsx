@@ -44,10 +44,8 @@ const Register = () => {
       email: formData.email,
       password: formData.password,
       role: selectedRole,
-      profile: {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-      },
+      firstName: formData.firstName,
+      lastName: formData.lastName,
     };
 
     const result = await signUp(userData);
