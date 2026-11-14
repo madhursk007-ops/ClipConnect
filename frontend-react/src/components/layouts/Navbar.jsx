@@ -24,12 +24,13 @@ const Navbar = () => {
   const { isAuthenticated, user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const dashboardPath = user?.role === 'editor' ? '/editor/dashboard' : '/client/dashboard';
 
   const navLinks = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/marketplace', label: 'Marketplace', icon: Users },
     ...(isAuthenticated ? [
-      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard },
       { path: '/projects', label: 'Projects', icon: FolderKanban },
     ] : []),
   ];
@@ -111,7 +112,7 @@ const Navbar = () => {
                         className="absolute right-0 mt-2 w-48 bg-dark-800 border border-white/10 rounded-xl shadow-2xl py-2"
                       >
                         <Link 
-                          to="/dashboard" 
+                          to={dashboardPath} 
                           className="flex items-center px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5"
                         >
                           <LayoutDashboard className="w-4 h-4 mr-2" />
