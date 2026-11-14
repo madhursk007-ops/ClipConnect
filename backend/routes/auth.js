@@ -298,8 +298,7 @@ router.put('/update-profile', protect, async (req, res) => {
       message: 'Profile updated successfully',
       data: {
         user: {
-          ...user,
-          password: undefined,
+          ...publicUser(user),
         }
       }
     });
