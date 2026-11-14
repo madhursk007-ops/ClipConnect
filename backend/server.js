@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
+const path = require('path');
 require('dotenv').config();
 
 const logger = require('./utils/logger');
@@ -68,6 +69,16 @@ app.use('/api/stats', statsRoutes);
 // Health check route
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'ClipConnect API is running' });
+});
+
+// Serve the built React application from the same origin when deployed as one service.
+const frontendDist = path.resolve(__dirname, '../frontend-react/dist');
+app.use(express.static(frontendDist));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  return res.sendFile(path.join(frontendDist, 'index.html'), (error) => {
+    if (error) next(error);
+  });
 });
 
 // Error handling middleware
