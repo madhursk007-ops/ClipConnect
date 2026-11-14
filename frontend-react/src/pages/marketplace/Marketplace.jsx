@@ -29,6 +29,7 @@ const Marketplace = () => {
   const [editors, setEditors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -67,7 +68,7 @@ const Marketplace = () => {
     };
     fetchEditors();
     return () => { active = false; };
-  }, [searchQuery]);
+  }, [searchQuery, refreshKey]);
 
   const skillOptions = ['Video Editing', 'Motion Graphics', 'Color Grading', 'Audio Editing', 'Animation', 'VFX', 'Storytelling'];
   const rateOptions = ['Under $50', '$50-$75', '$75-$100', '$100+'];
@@ -229,7 +230,7 @@ const Marketplace = () => {
 
         {/* Results Grid */}
         {loading && <p className="py-10 text-center text-gray-400">Loading verified editor profiles…</p>}
-        {!loading && loadError && <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-300">{loadError} <button onClick={() => setSearchQuery((value) => value)} className="ml-2 underline">Retry</button></div>}
+        {!loading && loadError && <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-300">{loadError} <button onClick={() => setRefreshKey((value) => value + 1)} className="ml-2 underline">Retry</button></div>}
         {!loading && !loadError && <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {visibleEditors.map((editor, index) => (
             <motion.div
