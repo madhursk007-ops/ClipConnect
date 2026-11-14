@@ -48,7 +48,8 @@ const ProjectDetail = () => {
 
   const handleSubmitProposal = async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setSubmitting(true);
     setFormError('');
     try {
@@ -58,7 +59,7 @@ const ProjectDetail = () => {
         message: String(form.get('message') || '').trim(),
       });
       await loadProject();
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (error) {
       setFormError(error.response?.data?.message || 'Your proposal could not be submitted.');
     } finally {
@@ -122,7 +123,7 @@ const ProjectDetail = () => {
               <span className="flex items-center"><Briefcase className="w-4 h-4 mr-2" />{category}</span>
               <span className="flex items-center"><Calendar className="w-4 h-4 mr-2" />Posted {new Date(project.createdAt).toLocaleDateString()}</span>
               <span className="flex items-center"><Clock className="w-4 h-4 mr-2" />Deadline: {new Date(project.deadline).toLocaleDateString()}</span>
-              <span className="flex items-center"><Send className="w-4 h-4 mr-2" />{proposals.length} proposals{!isOwner && ' shown to project owner'}</span>
+              <span className="flex items-center"><Send className="w-4 h-4 mr-2" />{isOwner ? `${proposals.length} proposals` : 'Proposal review handled by the client'}</span>
             </div>
 
             <div>
