@@ -14,7 +14,7 @@ import { useAuth } from '@hooks';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const isEditor = user?.role === 'editor';
+  const isEditor = String(user?.role || '').toLowerCase() === 'editor';
   const isClient = user?.role === 'client';
 
   const fadeInUp = {
@@ -54,7 +54,7 @@ const Dashboard = () => {
       {/* Header */}
       <motion.div {...fadeInUp}>
         <h1 className="text-3xl font-bold text-white mb-2">
-          Welcome back, {user?.profile?.firstName || 'User'}!
+          Welcome back, {user?.firstName || 'User'}!
         </h1>
         <p className="text-gray-400">
           Here's what's happening with your {isEditor ? 'freelance' : 'hiring'} activity
