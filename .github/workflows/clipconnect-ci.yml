@@ -3,6 +3,7 @@ name: ClipConnect integration checks
 on:
   push:
     branches:
+      - master
       - integration/full-marketplace
     paths:
       - 'backend/**'
