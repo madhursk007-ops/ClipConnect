@@ -1,392 +1,146 @@
-# ClipConnect - Premium Video Editor Marketplace
+# ClipConnect — Video Editor Marketplace
 
-A full-stack, production-ready SaaS web application connecting video editors with clients/content creators.
+ClipConnect is a full-stack marketplace project designed to connect video editors with clients and content creators. The repository contains a Node.js API, a React/Vite frontend, a static HTML/CSS/JavaScript frontend, and a separately deployable prototype.
 
-## 🎬 Overview
+> **Project status:** Active development. Features described below are represented in the codebase; deployment, production readiness, and end-to-end behavior must be verified in a configured environment before being described as production-ready.
 
-ClipConnect is a premium marketplace platform that bridges the gap between talented video editors and clients seeking professional video editing services. Built with modern technologies and best practices, it offers a seamless experience for both editors and clients.
-- **Editor Profiles**: Showcase portfolios, skills, pricing, and availability
-- **Project Marketplace**: Clients post projects, editors submit proposals
-- **Real-time Messaging**: Built-in chat system for collaboration
-- **Rating & Review System**: Build trust through community feedback
-- **Advanced Search & Filtering**: Find the perfect match for your project
+## Product direction
 
-### Premium UI/UX
-- **Cinematic Design**: Dark theme with electric purple and neon blue accents
-- **Smooth Animations**: Framer Motion-inspired transitions and micro-interactions
-- **Responsive Design**: Mobile-first approach with desktop optimization
-- **Glassmorphism Effects**: Modern UI with depth and transparency
-- **Loading States**: Skeleton screens and smooth transitions
+- Editor profiles with skills, portfolios, pricing, and availability
+- Client project posting and editor proposals
+- Project collaboration and messaging
+- Ratings and reviews
+- Search and discovery
+- Subscription and payment integration groundwork
+- AI-assisted matching and project workflows
 
-## 🛠 Tech Stack
+## Technology
 
-### Frontend
-- **HTML5** with semantic markup
-- **CSS3** with custom properties and animations
-- **Vanilla JavaScript** (ES6+)
-- **Font Awesome** for icons
-- **Google Fonts** (Inter & Poppins)
+| Layer | Stack |
+|---|---|
+| API | Node.js, Express |
+| Data access | Prisma ORM |
+| Database | PostgreSQL |
+| Authentication and security | JWT, bcryptjs, Helmet, express-rate-limit, validation middleware |
+| Realtime | Socket.IO |
+| Media | Cloudinary integration |
+| Payments | Stripe integration |
+| React frontend | React 18, Vite, React Router, Zustand, Axios, Framer Motion |
+| Static frontend | HTML, CSS, vanilla JavaScript |
 
-### Backend
-- **Node.js** with Express.js
-- **MongoDB** with Mongoose ODM
-- **JWT** for authentication
-- **bcryptjs** for password hashing
-- **Multer** for file uploads
-- **Helmet** for security
-- **Rate limiting** for API protection
+## Repository layout
 
-## 📁 Project Structure
-
-```
-ClipConnect/
-├── backend/
-│   ├── models/
-│   │   ├── User.js
-│   │   ├── Project.js
-│   │   ├── Message.js
-│   │   └── Review.js
+```text
+.
+├── backend/                 # Express API, Prisma schema and migrations
+│   ├── config/
+│   ├── controllers/
+│   ├── middlewares/
+│   ├── prisma/
 │   ├── routes/
-│   │   ├── auth.js
-│   │   ├── users.js
-│   │   ├── projects.js
-│   │   ├── messages.js
-│   │   └── reviews.js
-│   ├── middleware/
-│   │   └── auth.js
+│   ├── scripts/
+│   ├── utils/
 │   ├── package.json
-│   ├── server.js
-│   └── .env
-├── frontend/
-│   ├── css/
-│   │   ├── styles.css
-│   │   ├── animations.css
-│   │   └── auth.css
-│   ├── js/
-│   │   ├── main.js
-│   │   ├── auth.js
-│   │   └── animations.js
-│   ├── index.html
-│   └── (additional HTML pages)
+│   └── server.js
+├── frontend/                # Static HTML/CSS/JavaScript client
+├── frontend-react/          # React + Vite client
+├── prototype/               # Standalone GitHub Pages prototype
+├── .github/workflows/       # Prototype deployment workflow
+├── DEPLOYMENT.md
 └── README.md
 ```
 
-## 🚀 Getting Started
+## Run locally
 
-### Prerequisites
-- Node.js (v14 or higher)
-- MongoDB (local or cloud instance)
-- Git
+### Requirements
 
-### Installation
+- Node.js 18 or newer
+- npm 9 or newer
+- PostgreSQL
+- Environment variables configured locally
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd ClipConnect
-   ```
+### 1. Configure the API
 
-2. **Backend Setup**
-   ```bash
-   cd backend
-   npm install
-   ```
-
-3. **Environment Configuration**
-   ```bash
-   # Copy .env file and update with your credentials
-   cp .env.example .env
-   ```
-   
-   Update the following variables in `.env`:
-   ```
-   PORT=5000
-   MONGODB_URI=mongodb://localhost:27017/clipconnect
-   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-   JWT_EXPIRE=7d
-   NODE_ENV=development
-   ```
-
-4. **Start MongoDB**
-   - If using local MongoDB: `mongod`
-   - If using MongoDB Atlas: Update `MONGODB_URI` with your connection string
-
-5. **Start Backend Server**
-   ```bash
-   npm run dev
-   ```
-   The API will be running at `http://localhost:5000`
-
-6. **Frontend Setup**
-   ```bash
-   cd ../frontend
-   ```
-   
-   You can serve the frontend using any static server:
-   ```bash
-   # Using Python
-   python -m http.server 3000
-   
-   # Using Node.js serve package
-   npx serve . -p 3000
-   
-   # Using Live Server extension in VS Code
-   ```
-
-7. **Access the Application**
-   - Frontend: `http://localhost:3000`
-   - Backend API: `http://localhost:5000`
-   - API Health Check: `http://localhost:5000/api/health`
-
-## 📚 API Documentation
-
-### Authentication Endpoints
-
-#### Register User
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "username": "johndoe",
-  "email": "john@example.com",
-  "password": "password123",
-  "role": "editor",
-  "firstName": "John",
-  "lastName": "Doe",
-  "bio": "Professional video editor"
-}
-```
-
-#### Login
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
-
-#### Get Current User
-```http
-GET /api/auth/me
-Authorization: Bearer <token>
-```
-
-### User Endpoints
-
-#### Get All Users
-```http
-GET /api/users?role=editor&skills=video-editing&page=1&limit=10
-```
-
-#### Get User by ID
-```http
-GET /api/users/:id
-```
-
-#### Get Featured Editors
-```http
-GET /api/users/editors/featured?limit=6
-```
-
-### Project Endpoints
-
-#### Create Project
-```http
-POST /api/projects
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "title": "YouTube Video Editing",
-  "description": "Need editing for 10-minute YouTube video",
-  "category": "video-editing",
-  "budget": 500,
-  "deadline": "2024-02-01T00:00:00.000Z",
-  "requirements": {
-    "duration": "10 minutes",
-    "format": "YouTube",
-    "revisions": 2
-  }
-}
-```
-
-#### Get Projects
-```http
-GET /api/projects?status=open&category=video-editing&page=1&limit=10
-```
-
-#### Submit Proposal
-```http
-POST /api/projects/:id/proposals
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "message": "I can help with this project",
-  "estimatedTime": "3 days",
-  "proposedBudget": 450
-}
-```
-
-### Message Endpoints
-
-#### Get Conversations
-```http
-GET /api/messages?page=1&limit=20
-Authorization: Bearer <token>
-```
-
-#### Send Message
-```http
-POST /api/messages
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "recipient": "user_id",
-  "content": "Hello, I'm interested in your project",
-  "project": "project_id"
-}
-```
-
-## 🎨 Design System
-
-### Color Palette
-- **Primary Black**: `#0B0B0F`
-- **Secondary Black**: `#1a1a1f`
-- **Accent Purple**: `#7F5AF0`
-- **Accent Blue**: `#2CB9FF`
-- **Accent Pink**: `#FF2E63`
-
-### Typography
-- **Headings**: Poppins (300-800 weight)
-- **Body**: Inter (400-600 weight)
-
-### Animations
-- **Page Transitions**: Fade + slide effects
-- **Hover States**: Smooth transforms and glows
-- **Loading States**: Skeleton screens and spinners
-- **Scroll Animations**: Intersection Observer-based reveals
-
-## 🔧 Development
-
-### Scripts
-
-#### Backend
 ```bash
-npm start          # Start production server
-npm run dev        # Start development server with nodemon
-npm test           # Run tests (when implemented)
+cd backend
+npm ci
+cp .env.example .env
 ```
 
-### Code Style
-- **ES6+** JavaScript features
-- **Modular CSS** with custom properties
-- **Semantic HTML5** markup
-- **Responsive-first** design approach
+Set the required values in your local `.env` file. At minimum, configure a valid PostgreSQL `DATABASE_URL` and strong application secrets. Never commit `.env` or paste secrets into issues or pull requests.
 
-### Browser Support
-- Chrome/Chromium 80+
-- Firefox 75+
-- Safari 13+
-- Edge 80+
+### 2. Prepare the database
 
-## 🚀 Deployment
-
-### Backend Deployment (Render/Heroku)
-1. Set environment variables in your hosting platform
-2. Ensure MongoDB is accessible (MongoDB Atlas recommended)
-3. Deploy the Node.js application
-
-### Frontend Deployment (Netlify/Vercel)
-1. Build the frontend (if using build tools)
-2. Deploy the static files
-3. Update API base URL in JavaScript files
-
-### Environment Variables for Production
-```
-NODE_ENV=production
-MONGODB_URI=mongodb+srv://...
-JWT_SECRET=your-production-secret
-PORT=5000
-```
-
-## 🔒 Security Features
-
-- **JWT Authentication**: Secure token-based authentication
-- **Password Hashing**: bcryptjs for secure password storage
-- **Rate Limiting**: Prevent API abuse and brute force attacks
-- **Helmet.js**: Security headers for Express
-- **Input Validation**: Server-side validation for all inputs
-- **CORS Configuration**: Proper cross-origin resource sharing setup
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-If you encounter any issues or have questions:
-
-1. Check the [API Documentation](#-api-documentation)
-2. Review the [Troubleshooting](#troubleshooting) section
-3. Create an issue in the repository
-4. Contact the development team
-
-## 🔮 Future Features
-
-- [ ] Real-time notifications
-- [ ] Video file upload and preview
-- [ ] Advanced analytics dashboard
-- [ ] Mobile applications (React Native)
-- [ ] Payment integration (Stripe)
-- [ ] Advanced search with AI recommendations
-- [ ] Portfolio video hosting
-- [ ] Collaborative editing tools
-- [ ] Subscription plans for premium features
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### MongoDB Connection Error
-- Ensure MongoDB is running
-- Check connection string in `.env`
-- Verify network connectivity
-
-#### CORS Issues
-- Check frontend URL in CORS configuration
-- Ensure API base URL is correct in frontend
-
-#### Authentication Errors
-- Verify JWT secret is set
-- Check token expiration
-- Ensure proper Authorization header format
-
-#### Styling Issues
-- Clear browser cache
-- Check CSS file imports
-- Verify CSS custom properties support
-
-### Debug Mode
-Enable debug logging by setting:
 ```bash
-NODE_ENV=development
-DEBUG=clipconnect:*
+npx prisma generate
+npx prisma migrate deploy
 ```
 
----
+For local development where migrations need to be created, use the Prisma development workflow documented by the team.
 
-**Built with ❤️ by the ClipConnect Team**
+### 3. Start the API
+
+```bash
+npm run dev
+```
+
+The default API port is configured through the environment. Check `backend/server.js` and your local environment settings for the health endpoint and port.
+
+### 4. Run the React frontend
+
+In a second terminal:
+
+```bash
+cd frontend-react
+npm ci
+npm run dev
+```
+
+Use the Vite URL printed in the terminal. Configure the frontend API base URL to match your local backend.
+
+## Useful scripts
+
+### Backend
+
+```bash
+npm run dev
+npm start
+npm test
+npm run lint
+npm run db:generate
+npm run db:migrate:prod
+npm run db:studio
+```
+
+### React frontend
+
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
+```
+
+## Security notes
+
+- Keep all credentials in environment variables or the hosting provider's secret manager.
+- Use `.env.example` for placeholder variable names only.
+- Do not commit dependencies, build output, local logs, or user data.
+- Rotate any credential that has ever been committed to a public repository.
+- Configure production CORS origins, HTTPS, database access controls, and payment-provider webhooks before deployment.
+
+## Current verification
+
+A repository listing is not proof that a feature works end to end. Before a release, run backend tests and lint, build and lint the React frontend, validate database migrations against a disposable PostgreSQL database, and test the main user journeys with configured services.
+
+## Contributing
+
+1. Create a focused branch.
+2. Make a small, testable change.
+3. Run the relevant checks.
+4. Document configuration changes and new environment variables.
+5. Open a pull request describing behavior and test evidence.
+
+## Maintainer
+
+**Madhur S. Khadabadi** — [GitHub](https://github.com/madhursk007-ops)
