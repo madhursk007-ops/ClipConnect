@@ -1,7 +1,7 @@
 name: Deploy ClipConnect prototype to GitHub Pages
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - 'prototype/**'
       - '.github/workflows/deploy-prototype.yml'
