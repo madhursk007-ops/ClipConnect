@@ -1,0 +1,32 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const root = __dirname;
+const read = name => fs.readFileSync(path.join(root, name), "utf8");
+const client = read("client-dashboard.html");
+const editor = read("editor-dashboard.html");
+const shared = read("workspace.js");
+const home = read("index.html");
+const discover = read("discover.html");
+const projects = read("projects.html");
+for (const [name, html] of [["client", client], ["editor", editor], ["home", home], ["discover", discover], ["projects", projects]]) {
+  assert.match(html, /href="styles\.css"/, name + " page must load shared styles");
+  assert.match(html, /<nav>/, name + " page must retain site navigation");
+}
+assert.match(client, /data-workspace="client"/);
+assert.match(editor, /data-workspace="editor"/);
+assert.match(client, /id="client-project-form"/);
+assert.match(client, /id="client-projects"/);
+assert.match(client, /id="client-proposals"/);
+assert.match(editor, /id="editor-available-projects"/);
+assert.match(editor, /id="editor-applications"/);
+assert.match(editor, /id="editor-portfolio-form"/);
+assert.match(shared, /clipconnect-marketplace-demo-v2/);
+assert.match(shared, /data-apply-project/);
+assert.match(shared, /data-accept-proposal/);
+assert.match(shared, /addEventListener\("storage"/);
+assert.match(home, /client-dashboard\.html/);
+assert.match(home, /editor-dashboard\.html/);
+assert.match(discover, /index\.html/);
+assert.match(projects, /index\.html/);
+console.log("ClipConnect prototype smoke checks passed: separate roles, multi-page links, shared demo workflow, and client/editor actions.");
