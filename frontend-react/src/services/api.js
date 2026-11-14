@@ -178,6 +178,12 @@ export const projectService = {
   getMyProjects: (params) => api.get('/projects/my', { params }),
   getProjectMessages: (id) => api.get(`/projects/${id}/messages`),
   sendProjectMessage: (id, messageData) => api.post(`/projects/${id}/messages`, messageData),
+  getClientProjects: (clientId, params) => api.get(`/projects/client/${clientId}`, { params }),
+  getEditorProjects: (editorId, params) => api.get(`/projects/editor/${editorId}`, { params }),
+  getMyEditorProposals: () => api.get('/projects/editor/proposals/mine'),
+  getProjectProposals: (projectId) => api.get(`/projects/${projectId}/proposals`),
+  submitProposal: (projectId, proposalData) => api.post(`/projects/${projectId}/proposals`, proposalData),
+  acceptProposal: (projectId, proposalId) => api.put(`/projects/${projectId}/proposals/${proposalId}/accept`),
 }
 
 export const messageService = {
