@@ -139,6 +139,18 @@
   });
   document.querySelectorAll(".menu-toggle").forEach(button => button.addEventListener("click", () => $(".topbar")?.classList.toggle("menu-open")));
   document.querySelectorAll(".topbar nav a").forEach(link => link.addEventListener("click", () => $(".topbar")?.classList.remove("menu-open")));
+  window.addEventListener("storage", event => {
+    if (event.key !== STORAGE_KEY || !event.newValue) return;
+    try {
+      const latest = JSON.parse(event.newValue);
+      if (latest && Array.isArray(latest.projects) && Array.isArray(latest.proposals)) {
+        state = latest;
+        if (!Array.isArray(state.portfolio)) state.portfolio = [];
+        if (document.body.dataset.workspace === "client") renderClient();
+        if (document.body.dataset.workspace === "editor") renderEditor();
+      }
+    } catch (_) {}
+  });
   if (document.body.dataset.workspace === "client") renderClient();
   if (document.body.dataset.workspace === "editor") renderEditor();
 })();
