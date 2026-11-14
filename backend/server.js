@@ -38,7 +38,8 @@ const corsOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   ...(process.env.CORS_ORIGIN || '').split(','),
-  process.env.FRONTEND_URL || ''
+  process.env.FRONTEND_URL || '',
+  process.env.RENDER_EXTERNAL_URL || ''
 ].map(origin => origin.trim()).filter(Boolean);
 
 app.use(cors({
