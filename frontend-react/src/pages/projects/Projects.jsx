@@ -38,7 +38,8 @@ const Projects = () => {
     setLoadError('');
     try {
       const response = await projectService.getProjects({ limit: 50 });
-      setProjects(response.data?.data?.projects || []);
+      const results = response.data?.data?.projects || [];
+      setProjects(isClient ? results.filter((project) => project.clientId === user?.id) : results);
     } catch (error) {
       setLoadError(error.response?.data?.message || 'Unable to load projects. Please try again.');
     } finally {
@@ -54,7 +55,8 @@ const Projects = () => {
     event.preventDefault();
     setSubmitting(true);
     setFormError('');
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const payload = {
       title: String(form.get('title') || '').trim(),
       description: String(form.get('description') || '').trim(),
@@ -67,7 +69,7 @@ const Projects = () => {
       const created = response.data?.data?.project;
       if (created) setProjects((current) => [created, ...current]);
       setShowCreateModal(false);
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (error) {
       setFormError(error.response?.data?.message || 'Project could not be posted. Please try again.');
     } finally {
