@@ -45,7 +45,7 @@ const authenticate = async (req, res, next) => {
       }
     });
 
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || user.isSuspended) {
       return res.status(401).json({
         success: false,
         message: 'User not found or account deactivated.',
@@ -78,8 +78,8 @@ const authorize = (...roles) => {
       });
     }
 
-    if (!roles.includes(req.user.role)) {
-      logger.warn(`Access denied for user ${req.user._id}. Role: ${req.user.role}, Required: ${roles.join(', ')}`);
+    if (!roles.some((role) => role.toLowerCase() === String(req.user.role).toLowerCase())) {
+      logger.warn(`Access denied for user ${req.user.id}. Role: ${req.user.role}, Required: ${roles.join(', ')}`);
       return res.status(403).json({
         success: false,
         message: 'Access denied. Insufficient permissions.',
@@ -104,14 +104,28 @@ const optionalAuth = async (req, res, next) => {
     const token = authHeader.replace('Bearer ', '');
     const decoded = verifyToken(token);
 
-    if (decoded) {
-      const user = await User.findById(decoded.userId).select('-password -refreshToken');
-      if (user && user.isActive) {
+    if (decoded && (decoded.userId || decoded.id)) {
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId || decoded.id },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          role: true,
+          isActive: true,
+          isSuspended: true,
+          firstName: true,
+          lastName: true,
+          avatar: true,
+        },
+      });
+
+      if (user && user.isActive && !user.isSuspended) {
         req.user = user;
       }
     }
 
-    next();
+    return next();
   } catch (error) {
     // Don't fail the request, just continue without user
     next();
@@ -134,7 +148,7 @@ const checkOwnership = (resourceField = 'userId') => {
     const resourceOwnerId = req.params[resourceField];
     const userId = req.user.id;
 
-    if (resourceOwnerId !== userId && req.user.role !== 'admin') {
+    if (resourceOwnerId !== userId && String(req.user.role).toLowerCase() !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You can only access your own resources.',
