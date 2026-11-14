@@ -1,0 +1,32 @@
+name: ClipConnect prototype checks
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "prototype/**"
+      - ".github/workflows/prototype-check.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "prototype/**"
+      - ".github/workflows/prototype-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  prototype-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check JavaScript syntax
+        run: |
+          node --check prototype/app.js
+          node --check prototype/workspace.js
+          node --check prototype/role-workspaces.js
+      - name: Check separate role workflows and page links
+        run: node prototype/smoke-test.cjs
