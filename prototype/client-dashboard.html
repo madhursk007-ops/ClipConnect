@@ -1,6 +1,34 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d12"><meta name="description" content="Client workspace — ClipConnect interactive demo."><title>Client workspace | ClipConnect</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css"></head><body>
-<header class="topbar"><a class="brand" href="index.html"><span class="brand-icon">C</span>clipconnect<span class="brand-dot">.</span></a><nav><a href="index.html">Home</a><a href="discover.html" >Discover</a><a href="projects.html" >Projects</a></nav><div class="top-actions"><button class="btn ghost" data-open="login">Demo login</button><a class="btn primary" href="index.html">Home ↗</a></div><button class="menu-toggle" aria-label="Open menu">☰</button></header>
-<main class="page-shell"><div class="wrap section"><a class="back-link" href="index.html">← Back to marketplace</a><div class="page-heading"><div class="eyebrow">DEMO WORKSPACE / CLIENT</div><h1>Your creative <em>control room.</em></h1><p>This is a simulated client account. No sign-in, payment or data persistence is connected.</p></div><div class="dashboard-grid"><article class="dashboard-card"><small>OPEN SAMPLE BRIEFS</small><strong>03</strong><p>Explore example projects and their requirements.</p><a class="text-btn" href="projects.html">Browse project briefs ↗</a></article><article class="dashboard-card"><small>EDITOR DISCOVERY</small><strong>06</strong><p>Review sample editor profiles and specialties.</p><a class="text-btn" href="discover.html">Find an editor ↗</a></article><article class="dashboard-card"><small>SHORTLIST</small><strong>00</strong><p>Saved editor selections are local demo interactions.</p><a class="text-btn" href="discover.html">Build a shortlist ↗</a></article></div><section class="dashboard-panel"><div class="section-head"><div><div class="eyebrow">SUGGESTED NEXT STEP</div><h2>Start with a clear <em>brief.</em></h2></div><p>Browse the sample briefs, compare budgets and explore the type of collaboration ClipConnect is designed to support.</p></div><a class="btn primary" href="projects.html">View sample projects ↗</a></section></div></main>
-<footer class="footer wrap"><a class="brand" href="index.html"><span class="brand-icon">C</span>clipconnect<span class="brand-dot">.</span></a><p>Multi-page interactive marketplace preview · Sample data only</p><span>© 2026 CLIPCONNECT</span></footer>
-<div class="modal-backdrop" id="modal" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" aria-label="Close dialog">×</button><div class="eyebrow">CLIPCONNECT PREVIEW</div><h2 id="modal-title">Explore the experience.</h2><p id="modal-copy">Choose a demo role to continue.</p><div id="modal-extra"></div><button class="btn primary modal-ok" id="modal-ok">Got it</button></section></div><div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d12">
+  <meta name="description" content="A dedicated client workspace for posting video editing briefs and reviewing editor proposals.">
+  <title>Client workspace | ClipConnect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-workspace="client">
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-icon">C</span>clipconnect<span class="brand-dot">.</span></a><nav><a href="index.html">Marketplace</a><a href="discover.html">Discover editors</a><a href="projects.html">Public briefs</a><a href="editor-dashboard.html">Editor preview ↗</a></nav><div class="top-actions"><span class="demo-role-label">CLIENT DEMO</span><a class="btn primary" href="index.html">Exit workspace</a></div><button class="menu-toggle" aria-label="Open menu">☰</button></header>
+<main class="workspace-layout wrap">
+  <aside class="workspace-sidebar"><small>CLIENT SPACE</small><a href="#overview" aria-current="page">Overview</a><a href="#post-brief">Post a brief</a><a href="#my-projects">My projects</a><a href="#proposals">Editor proposals</a><a href="discover.html">Discover talent ↗</a></aside>
+  <div class="workspace-main">
+    <a class="back-link" href="index.html">← Marketplace home</a>
+    <div class="workspace-title" id="overview"><div class="eyebrow">CLIENT WORKSPACE / DEMO ACCOUNT</div><h1>Your creative <em>control room.</em></h1><p>Post a clear brief, manage your open projects and review proposals from editors. All activity is shared locally with the Editor demo workspace on this browser.</p></div>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <div class="workspace-stats"><article class="workspace-stat"><small>OPEN BRIEFS</small><strong id="client-open-count">0</strong></article><article class="workspace-stat"><small>ALL PROJECTS</small><strong id="client-total-count">0</strong></article><article class="workspace-stat"><small>PROPOSALS RECEIVED</small><strong id="client-proposal-count">0</strong></article></div>
+    <section class="workspace-panel" id="post-brief"><h2>Post a new project brief</h2><p class="panel-intro">Give editors the essentials: what you need, your budget and when you need it.</p>
+      <form class="workspace-form" id="client-project-form">
+        <label>Project title<input name="title" required minlength="5" maxlength="90" placeholder="e.g. Product launch video for a new brand"></label>
+        <label>Project description<textarea name="description" required minlength="20" maxlength="700" placeholder="Describe the style, footage, deliverables and editing requirements..."></textarea></label>
+        <div class="form-two"><label>Estimated budget<input name="budget" required maxlength="50" placeholder="e.g. ₹8,000–₹12,000"></label><label>Delivery timeline<select name="deadline" required><option value="">Choose timeline</option><option>2–3 days</option><option>3–5 days</option><option>1 week</option><option>1–2 weeks</option><option>Flexible</option></select></label></div>
+        <button class="btn primary" type="submit">Publish demo brief ↗</button>
+      </form>
+    </section>
+    <section class="workspace-panel" id="my-projects"><h2>Your project briefs</h2><p class="panel-intro">Close a brief when you have enough proposals, or reopen it to invite more editors.</p><div class="work-list" id="client-projects"></div></section>
+    <section class="workspace-panel" id="proposals"><h2>Proposals from editors</h2><p class="panel-intro">Review each editor's message and quote. Accepting a proposal updates its status in both demo workspaces.</p><div class="work-list" id="client-proposals"></div></section>
+  </div>
+</main>
+<footer class="footer wrap"><a class="brand" href="index.html"><span class="brand-icon">C</span>clipconnect<span class="brand-dot">.</span></a><p>Client workspace · Simulated demo data only</p><span>© 2026 CLIPCONNECT</span></footer>
+<script src="workspace.js"></script>
+</body></html>
