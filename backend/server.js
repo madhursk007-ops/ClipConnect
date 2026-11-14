@@ -29,7 +29,9 @@ app.use(helmet());
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 100, // limit each IP to 100 requests per windowMs
+  // Render probes this endpoint independently of user traffic. Never rate-limit health checks.
+  skip: (req) => req.path === '/health'
 });
 app.use('/api/', limiter);
 
