@@ -51,7 +51,14 @@ app.use(cors({
 }));
 
 // Body parser middleware
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  verify(req, res, buffer) {
+    if (req.originalUrl === '/api/subscription/webhook') {
+      req.rawBody = Buffer.from(buffer);
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Connect to PostgreSQL database
