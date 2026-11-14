@@ -3,7 +3,7 @@ services:
     name: clipconnect
     runtime: node
     plan: free
-    buildCommand: npm ci --prefix backend && npm ci --prefix frontend-react && npm run build --prefix frontend-react && npm run db:generate --prefix backend && npm run db:migrate:prod --prefix backend
+    buildCommand: npm ci --prefix backend && npm ci --prefix frontend-react --include=dev && npm run build --prefix frontend-react && npm run db:generate --prefix backend && npm run db:migrate:prod --prefix backend
     startCommand: npm start --prefix backend
     healthCheckPath: /api/health
     envVars:
