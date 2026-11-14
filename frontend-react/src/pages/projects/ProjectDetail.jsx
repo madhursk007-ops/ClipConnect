@@ -1,301 +1,123 @@
-import { useParams, Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  ArrowLeft, 
-  Clock, 
-  DollarSign, 
-  Briefcase,
-  MapPin,
-  Calendar,
-  User,
-  CheckCircle,
-  MessageSquare,
-  Send,
-  Paperclip
-} from 'lucide-react';
+import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Loader2, MapPin, MessageSquare, Send, Users } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '@hooks';
+import { projectService } from '@services/api';
+
+const money = (value) => new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(value || 0));
+const dateLabel = (value) => value ? new Date(value).toLocaleDateString() : 'Not specified';
+const messageFor = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 
 const ProjectDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
-  const isEditor = user?.role === 'editor';
+  const isEditor = String(user?.role || '').toLowerCase() === 'editor';
+  const isClient = String(user?.role || '').toLowerCase() === 'client';
+  const [project, setProject] = useState(null);
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [proposal, setProposal] = useState({ proposedBudget: '', estimatedTime: '3–5 days', message: '' });
 
-  // Mock project data
-  const project = {
-    _id: id,
-    title: 'Brand Commercial Video',
-    description: 'We need a professional 30-second commercial video for our new product launch. The video should be high-energy, modern, and appeal to a young professional audience. We have existing brand assets and footage that can be used. The final deliverable should include 16:9, 9:16, and 1:1 aspect ratios for different platforms.\n\nRequirements:\n- Professional color grading\n- Motion graphics for text overlays\n- Background music selection\n- Sound design and mixing\n- 3 revision rounds included',
-    status: 'open',
-    budget: 1500,
-    deadline: '2026-04-15',
-    category: 'Commercial',
-    createdAt: '2026-03-20',
-    client: {
-      _id: 'client1',
-      name: 'Tech Corp',
-      profile: {
-        firstName: 'John',
-        lastName: 'Smith',
-        location: 'San Francisco, CA',
-        avatar: null
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await projectService.getProjectById(id);
+      const current = response.data?.data?.project;
+      if (!current) throw new Error('Project not found.');
+      setProject(current);
+      if (isClient && current.clientId === (user?.id || user?._id)) {
+        const proposalResponse = await projectService.getProjectProposals(id);
+        setProposals(proposalResponse.data?.data?.proposals || []);
       }
-    },
-    requirements: ['Adobe Premiere Pro', 'After Effects', 'Color Grading', 'Sound Design'],
-    proposals: 5,
-    views: 127
+    } catch (requestError) {
+      setError(messageFor(requestError, 'Unable to load this project.'));
+    } finally {
+      setLoading(false);
+    }
+  }, [id, isClient, user?.id, user?._id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const submitProposal = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await projectService.submitProposal(id, { ...proposal, proposedBudget: Number(proposal.proposedBudget) });
+      toast.success('Your proposal has been sent to the client.');
+      setProposal({ proposedBudget: '', estimatedTime: '3–5 days', message: '' });
+    } catch (requestError) {
+      toast.error(messageFor(requestError, 'Could not submit your proposal.'));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Back Button */}
-      <Link 
-        to="/projects" 
-        className="inline-flex items-center text-gray-400 hover:text-white transition-colors"
-      >
-        <ArrowLeft className="w-5 h-5 mr-2" />
-        Back to Projects
-      </Link>
+  const acceptProposal = async (proposalId) => {
+    setSaving(true);
+    try {
+      await projectService.acceptProposal(id, proposalId);
+      toast.success('Proposal accepted. The project is now in progress.');
+      await load();
+    } catch (requestError) {
+      toast.error(messageFor(requestError, 'Could not accept this proposal.'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Project Header */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-morphism p-8 rounded-2xl border border-white/5"
-          >
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <span className="inline-block px-3 py-1 bg-green-500/10 text-green-400 text-sm font-medium rounded-full border border-green-500/20 mb-3">
-                  <CheckCircle className="w-3 h-3 inline mr-1" />
-                  Open for Proposals
-                </span>
-                <h1 className="text-3xl font-bold text-white">{project.title}</h1>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-white">${project.budget.toLocaleString()}</p>
-                <p className="text-gray-400">Budget</p>
-              </div>
-            </div>
+  if (loading) return <div className="flex items-center justify-center gap-3 py-20 text-gray-400"><Loader2 className="h-5 w-5 animate-spin" />Loading project details…</div>;
+  if (error || !project) return <div className="glass-morphism rounded-2xl border border-white/5 p-8"><p className="text-rose-200">{error || 'Project not found.'}</p><Link to="/projects" className="mt-4 inline-flex text-sm text-primary-300 hover:text-primary-200">← Back to projects</Link></div>;
 
-            <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400 mb-6 pb-6 border-b border-white/5">
-              <span className="flex items-center">
-                <Briefcase className="w-4 h-4 mr-2" />
-                {project.category}
-              </span>
-              <span className="flex items-center">
-                <Calendar className="w-4 h-4 mr-2" />
-                Posted {new Date(project.createdAt).toLocaleDateString()}
-              </span>
-              <span className="flex items-center">
-                <Clock className="w-4 h-4 mr-2" />
-                Deadline: {new Date(project.deadline).toLocaleDateString()}
-              </span>
-              <span className="flex items-center">
-                <User className="w-4 h-4 mr-2" />
-                {project.views} views
-              </span>
-              <span className="flex items-center">
-                <Send className="w-4 h-4 mr-2" />
-                {project.proposals} proposals
-              </span>
-            </div>
+  const isOwner = isClient && project.clientId === (user?.id || user?._id);
+  const isOpen = project.status === 'OPEN';
 
-            <div className="prose prose-invert max-w-none">
-              <h3 className="text-xl font-semibold text-white mb-3">Project Description</h3>
-              <p className="text-gray-300 whitespace-pre-line">{project.description}</p>
-            </div>
-
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-white mb-3">Required Skills</h3>
-              <div className="flex flex-wrap gap-2">
-                {project.requirements.map((skill) => (
-                  <span 
-                    key={skill}
-                    className="px-4 py-2 bg-primary-500/10 text-primary-400 text-sm rounded-full border border-primary-500/20"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Proposals Section (for client) */}
-          {!isEditor && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="glass-morphism p-6 rounded-2xl border border-white/5"
-            >
-              <h3 className="text-xl font-semibold text-white mb-6">Proposals ({project.proposals})</h3>
-              
-              <div className="space-y-4">
-                {[1, 2, 3].map((proposal) => (
-                  <div key={proposal} className="p-4 bg-dark-800/50 rounded-xl border border-white/5">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-accent-400 rounded-xl flex items-center justify-center">
-                        <span className="text-lg font-bold text-white">E{proposal}</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="text-white font-semibold">Editor {proposal}</h4>
-                          <span className="text-primary-400 font-semibold">${1000 + proposal * 200}</span>
-                        </div>
-                        <p className="text-gray-400 text-sm mb-3">
-                          I have extensive experience in commercial video editing. I can deliver high-quality work within your timeline...
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <button className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors">
-                            View Profile
-                          </button>
-                          <button className="px-4 py-2 bg-dark-700 text-white text-sm rounded-lg hover:bg-dark-600 transition-colors">
-                            Message
-                          </button>
-                          <button className="px-4 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors">
-                            Accept Proposal
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
+  return <div className="space-y-6">
+    <Link to="/projects" className="inline-flex items-center gap-2 text-sm text-gray-400 transition hover:text-white"><ArrowLeft className="h-4 w-4" />Back to marketplace</Link>
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-morphism rounded-2xl border border-white/5 p-6 sm:p-8">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <span className="inline-flex rounded-full border border-primary-400/20 bg-primary-400/10 px-3 py-1 text-xs font-semibold text-primary-200">{String(project.status).replaceAll('_', ' ')}</span>
+          <h1 className="mt-4 text-3xl font-bold text-white">{project.title}</h1>
+          <p className="mt-3 whitespace-pre-line text-sm leading-7 text-gray-300">{project.description}</p>
         </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Client Info */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-morphism p-6 rounded-2xl border border-white/5"
-          >
-            <h3 className="text-lg font-semibold text-white mb-4">About the Client</h3>
-            
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-accent-400 rounded-xl flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">
-                  {project.client.profile.firstName[0]}{project.client.profile.lastName[0]}
-                </span>
-              </div>
-              <div>
-                <p className="text-white font-semibold">
-                  {project.client.profile.firstName} {project.client.profile.lastName}
-                </p>
-                <p className="text-gray-400 text-sm">{project.client.name}</p>
-              </div>
-            </div>
-
-            <div className="space-y-2 text-sm text-gray-400">
-              <p className="flex items-center">
-                <MapPin className="w-4 h-4 mr-2" />
-                {project.client.profile.location}
-              </p>
-              <p className="flex items-center">
-                <Briefcase className="w-4 h-4 mr-2" />
-                12 projects posted
-              </p>
-              <p className="flex items-center">
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Member since 2021
-              </p>
-            </div>
-
-            <button className="w-full mt-4 py-2.5 border border-white/10 text-white rounded-lg hover:bg-white/5 transition-colors flex items-center justify-center">
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Contact Client
-            </button>
-          </motion.div>
-
-          {/* Apply Card (for editors) */}
-          {isEditor && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="glass-morphism p-6 rounded-2xl border border-white/5"
-            >
-              <h3 className="text-lg font-semibold text-white mb-4">Submit a Proposal</h3>
-              
-              <form className="space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Your Bid ($)</label>
-                  <input
-                    type="number"
-                    placeholder="1500"
-                    className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white focus:outline-none focus:border-primary-500/50"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Estimated Time</label>
-                  <select className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white focus:outline-none focus:border-primary-500/50">
-                    <option>Less than 1 week</option>
-                    <option>1-2 weeks</option>
-                    <option>2-4 weeks</option>
-                    <option>1-2 months</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Cover Letter</label>
-                  <textarea
-                    rows={4}
-                    placeholder="Describe why you're the best fit for this project..."
-                    className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary-500/50 resize-none"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 p-3 bg-dark-800 rounded-lg">
-                  <Paperclip className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-400">Attach portfolio samples</span>
-                </div>
-
-                <button className="w-full py-3 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary-500/25 transition-all">
-                  Submit Proposal
-                </button>
-              </form>
-            </motion.div>
-          )}
-
-          {/* Project Stats */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass-morphism p-6 rounded-2xl border border-white/5"
-          >
-            <h3 className="text-lg font-semibold text-white mb-4">Project Stats</h3>
-            
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-400">Views</span>
-                <span className="text-white font-semibold">{project.views}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Proposals</span>
-                <span className="text-white font-semibold">{project.proposals}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Interviewing</span>
-                <span className="text-white font-semibold">2</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Invites sent</span>
-                <span className="text-white font-semibold">8</span>
-              </div>
-            </div>
-          </motion.div>
-        </div>
+        <div className="shrink-0 rounded-xl bg-white/[0.04] p-5 sm:min-w-40 sm:text-right"><div className="text-2xl font-bold text-white">{money(project.budget)}</div><div className="mt-1 text-xs uppercase tracking-wider text-gray-500">Client budget</div></div>
       </div>
-    </div>
-  );
+      <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3 border-t border-white/[0.07] pt-5 text-sm text-gray-400">
+        <span className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4" />Deadline {dateLabel(project.deadline)}</span>
+        <span className="inline-flex items-center gap-2"><Clock3 className="h-4 w-4" />{project.duration || 'Duration flexible'}</span>
+        <span className="inline-flex items-center gap-2"><Users className="h-4 w-4" />{project.proposals?.length ?? 0} proposal(s)</span>
+        {project.client?.location && <span className="inline-flex items-center gap-2"><MapPin className="h-4 w-4" />{project.client.location}</span>}
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">{(project.tags || []).map((tag) => <span key={tag} className="rounded-full border border-white/10 px-3 py-1 text-xs text-gray-300">{tag}</span>)}</div>
+    </motion.div>
+
+    {isEditor && isOpen && <section className="glass-morphism rounded-2xl border border-primary-400/20 p-6">
+      <h2 className="text-xl font-semibold text-white">Send a proposal</h2>
+      <p className="mt-1 text-sm text-gray-400">Share your approach, estimated delivery time and quote with the client.</p>
+      <form onSubmit={submitProposal} className="mt-5 grid gap-4 sm:grid-cols-2">
+        <label className="space-y-2 text-sm text-gray-300">Your quote (USD)<input required type="number" min="1" step="0.01" value={proposal.proposedBudget} onChange={(e) => setProposal({ ...proposal, proposedBudget: e.target.value })} className="w-full rounded-xl border border-white/10 bg-dark-800 px-4 py-3 text-white" placeholder="450" /></label>
+        <label className="space-y-2 text-sm text-gray-300">Estimated delivery<input required value={proposal.estimatedTime} onChange={(e) => setProposal({ ...proposal, estimatedTime: e.target.value })} className="w-full rounded-xl border border-white/10 bg-dark-800 px-4 py-3 text-white" placeholder="5 days" /></label>
+        <label className="space-y-2 text-sm text-gray-300 sm:col-span-2">Cover message<textarea required minLength={20} rows={4} value={proposal.message} onChange={(e) => setProposal({ ...proposal, message: e.target.value })} className="w-full rounded-xl border border-white/10 bg-dark-800 px-4 py-3 text-white" placeholder="Explain your relevant experience and how you would approach this edit…" /></label>
+        <button disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2"><Send className="h-4 w-4" />{saving ? 'Sending…' : 'Submit proposal'}</button>
+      </form>
+    </section>}
+
+    {isOwner && <section className="glass-morphism rounded-2xl border border-white/5 p-6">
+      <div className="mb-5 flex items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-white">Editor proposals</h2><p className="mt-1 text-sm text-gray-400">Choose a proposal to assign this project.</p></div><span className="text-sm text-gray-400">{proposals.length} received</span></div>
+      {proposals.length === 0 ? <p className="rounded-xl bg-white/[0.03] p-5 text-sm text-gray-400">No proposals yet. Editors will appear here when they apply.</p> : <div className="space-y-3">{proposals.map((item) => <article key={item.id} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold text-white">{item.editor?.firstName || item.editor?.username || 'Editor'} {item.editor?.lastName || ''}</h3><p className="mt-1 text-xs text-gray-500">Submitted {dateLabel(item.submittedAt)} · {item.estimatedTime || 'Timeline not specified'}</p></div><div className="text-right"><div className="font-semibold text-white">{money(item.proposedBudget)}</div><span className="text-xs text-gray-500">{String(item.status).toLowerCase()}</span></div></div>
+        <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-300">{item.message}</p>
+        {isOpen && item.status === 'PENDING' && <button disabled={saving} onClick={() => acceptProposal(item.id)} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />Accept proposal</button>}
+      </article>)}</div>}
+    </section>}
+
+    {!isClient && !isEditor && <div className="rounded-xl border border-white/10 p-4 text-sm text-gray-300">Sign in with a Client or Editor account to interact with this project.</div>}
+  </div>;
 };
 
 export default ProjectDetail;
