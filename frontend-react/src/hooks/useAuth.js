@@ -50,8 +50,9 @@ export const useAuth = () => {
       const response = await api.post('/auth/register', userData);
       
       if (response.data.success) {
-        const { user, token } = response.data.data;
+        const { user, token, refreshToken } = response.data.data;
         login(user, token);
+        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
         return { success: true };
       }
     } catch (error) {
