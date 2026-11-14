@@ -351,6 +351,43 @@ router.get('/editors/featured', async (req, res) => {
   }
 });
 
+// @route   PUT /api/users/availability
+// @desc    Toggle editor availability
+// @access  Private (editors only)
+router.put('/availability', protect, authorize('editor'), async (req, res) => {
+  try {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { availability: true }
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { availability: !currentUser.availability },
+      select: { id: true, availability: true }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Availability updated successfully',
+      data: { user }
+    });
+  } catch (error) {
+    console.error('Update availability error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while updating availability'
+    });
+  }
+});
+
 // @route   PUT /api/users/:id/portfolio
 // @desc    Add portfolio item (editors only)
 // @access  Private
