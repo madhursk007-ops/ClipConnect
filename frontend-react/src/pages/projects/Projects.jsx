@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -17,80 +17,63 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@hooks';
+import { projectService } from '@services/api';
 
 const Projects = () => {
   const { user } = useAuth();
-  const isEditor = user?.role === 'editor';
-  const isClient = user?.role === 'client';
-
+  const role = String(user?.role || '').toLowerCase();
+  const isEditor = role === 'editor';
+  const isClient = role === 'client';
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  // Mock projects data
-  const projects = [
-    {
-      _id: '1',
-      title: 'Brand Commercial Video',
-      description: 'Need a 30-second commercial for our new product launch.',
-      status: 'open',
-      budget: 1500,
-      deadline: '2026-04-15',
-      category: 'Commercial',
-      client: { name: 'Tech Corp', avatar: null },
-      proposals: 5,
-      createdAt: '2026-03-20'
-    },
-    {
-      _id: '2',
-      title: 'YouTube Channel Intro',
-      description: 'Create an engaging intro sequence for my gaming channel.',
-      status: 'in-progress',
-      budget: 800,
-      deadline: '2026-04-10',
-      category: 'YouTube',
-      client: { name: 'Gaming Studio', avatar: null },
-      editor: { name: 'Sarah Johnson', avatar: null },
-      proposals: 0,
-      createdAt: '2026-03-18'
-    },
-    {
-      _id: '3',
-      title: 'Music Video Editing',
-      description: 'Edit a 4-minute music video with color grading and effects.',
-      status: 'open',
-      budget: 2500,
-      deadline: '2026-04-30',
-      category: 'Music',
-      client: { name: 'Artist Records', avatar: null },
-      proposals: 12,
-      createdAt: '2026-03-15'
-    },
-    {
-      _id: '4',
-      title: 'Corporate Training Video',
-      description: 'Edit 10 training videos for employee onboarding.',
-      status: 'completed',
-      budget: 3000,
-      deadline: '2026-03-20',
-      category: 'Corporate',
-      client: { name: 'Enterprise Inc', avatar: null },
-      editor: { name: 'Mike Chen', avatar: null },
-      proposals: 0,
-      createdAt: '2026-02-28'
-    },
-    {
-      _id: '5',
-      title: 'Social Media Content Package',
-      description: 'Create 20 short-form videos for Instagram and TikTok.',
-      status: 'open',
-      budget: 1200,
-      deadline: '2026-04-05',
-      category: 'Social Media',
-      client: { name: 'Fashion Brand', avatar: null },
-      proposals: 8,
-      createdAt: '2026-03-22'
+  const loadProjects = async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const response = await projectService.getProjects({ limit: 50 });
+      setProjects(response.data?.data?.projects || []);
+    } catch (error) {
+      setLoadError(error.response?.data?.message || 'Unable to load projects. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const handleCreateProject = async (event) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setFormError('');
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      title: String(form.get('title') || '').trim(),
+      description: String(form.get('description') || '').trim(),
+      budget: Number(form.get('budget')),
+      deadline: form.get('deadline'),
+      category: form.get('category'),
+    };
+    try {
+      const response = await projectService.createProject(payload);
+      const created = response.data?.data?.project;
+      if (created) setProjects((current) => [created, ...current]);
+      setShowCreateModal(false);
+      event.currentTarget.reset();
+    } catch (error) {
+      setFormError(error.response?.data?.message || 'Project could not be posted. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -112,9 +95,12 @@ const Projects = () => {
     return icons[status] || AlertCircle;
   };
 
-  const filteredProjects = filterStatus === 'all' 
-    ? projects 
-    : projects.filter(p => p.status === filterStatus);
+  const filteredProjects = projects.filter((project) => {
+    const status = String(project.status || '').toLowerCase().replace('_', '-');
+    const matchesStatus = filterStatus === 'all' || status === filterStatus;
+    const searchable = `${project.title || ''} ${project.description || ''} ${project.category || ''}`.toLowerCase();
+    return matchesStatus && searchable.includes(searchQuery.toLowerCase());
+  });
 
   return (
     <div className="space-y-6">
@@ -172,11 +158,12 @@ const Projects = () => {
       {/* Projects List */}
       <div className="space-y-4">
         {filteredProjects.map((project, index) => {
-          const StatusIcon = getStatusIcon(project.status);
+          const normalizedStatus = String(project.status || 'open').toLowerCase().replace('_', '-');
+          const StatusIcon = getStatusIcon(normalizedStatus);
           
           return (
             <motion.div
-              key={project._id}
+              key={project.id || project._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -193,9 +180,9 @@ const Projects = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-1">
                         <h3 className="text-lg font-semibold text-white">{project.title}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(project.status)} capitalize`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(normalizedStatus)} capitalize`}>
                           <StatusIcon className="w-3 h-3 inline mr-1" />
-                          {project.status.replace('-', ' ')}
+                          {normalizedStatus.replace('-', ' ')}
                         </span>
                       </div>
                       
@@ -206,14 +193,14 @@ const Projects = () => {
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                         <span className="flex items-center">
                           <DollarSign className="w-4 h-4 mr-1" />
-                          ${project.budget.toLocaleString()}
+                          ${Number(project.budget || 0).toLocaleString()}
                         </span>
                         <span className="flex items-center">
                           <Clock className="w-4 h-4 mr-1" />
                           Due {new Date(project.deadline).toLocaleDateString()}
                         </span>
                         <span className="px-2 py-1 bg-dark-700 rounded-md">
-                          {project.category}
+                          {String(project.category || '').replaceAll('_', ' ')}
                         </span>
                       </div>
                     </div>
@@ -222,14 +209,14 @@ const Projects = () => {
 
                 {/* Actions */}
                 <div className="flex items-center gap-3">
-                  {project.status === 'open' && isEditor && (
+                  {normalizedStatus === 'open' && isEditor && (
                     <button className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-primary-500/25 transition-all">
                       Apply Now
                     </button>
                   )}
                   
                   <Link
-                    to={`/projects/${project._id}`}
+                    to={`/projects/${project.id || project._id}`}
                     className="px-6 py-2.5 bg-dark-700 text-white font-medium rounded-lg hover:bg-dark-600 transition-all"
                   >
                     View Details
@@ -237,7 +224,7 @@ const Projects = () => {
 
                   {project.proposals > 0 && (
                     <span className="px-3 py-1 bg-primary-500/10 text-primary-400 text-sm rounded-full">
-                      {project.proposals} proposals
+                      {Array.isArray(project.proposals) ? project.proposals.length : Number(project.proposals || 0)} proposals
                     </span>
                   )}
                 </div>
@@ -248,7 +235,7 @@ const Projects = () => {
       </div>
 
       {/* Empty State */}
-      {filteredProjects.length === 0 && (
+      {!loading && !loadError && filteredProjects.length === 0 && (
         <div className="text-center py-16">
           <div className="w-24 h-24 mx-auto mb-6 bg-dark-800 rounded-full flex items-center justify-center">
             <Briefcase className="w-12 h-12 text-gray-600" />
@@ -287,12 +274,12 @@ const Projects = () => {
                 </button>
               </div>
 
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleCreateProject}>
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Project Title</label>
                   <input
                     type="text"
-                    placeholder="e.g., Brand Commercial Video"
+                    name="title" required placeholder="e.g., Brand Commercial Video"
                     className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary-500/50"
                   />
                 </div>
@@ -301,7 +288,7 @@ const Projects = () => {
                   <label className="block text-sm font-medium text-gray-400 mb-2">Description</label>
                   <textarea
                     rows={4}
-                    placeholder="Describe your project requirements..."
+                    name="description" required placeholder="Describe your project requirements..."
                     className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary-500/50 resize-none"
                   />
                 </div>
@@ -335,7 +322,7 @@ const Projects = () => {
                   </select>
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                {formError && <p role="alert" className="text-sm text-red-300">{formError}</p>}\n                <div className="flex gap-3 pt-4">
                   <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
