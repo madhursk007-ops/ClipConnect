@@ -1,5 +1,8 @@
 # ClipConnect — Video Editor Marketplace
 
+> **Live demo:** [Open ClipConnect](https://clipconnect-ce56.onrender.com)  
+> **Source code:** [GitHub repository](https://github.com/madhursk007-ops/ClipConnect)
+
 ClipConnect is a full-stack marketplace project designed to connect video editors with clients and content creators. The repository contains a Node.js API, a React/Vite frontend, a static HTML/CSS/JavaScript frontend, and a separately deployable prototype.
 
 > **Project status:** Active development. Features described below are represented in the codebase; deployment, production readiness, and end-to-end behavior must be verified in a configured environment before being described as production-ready.
