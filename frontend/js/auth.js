@@ -1,7 +1,7 @@
 // ===== Authentication Module =====
 class AuthManager {
   constructor() {
-    this.apiBase = 'http://localhost:5000/api';
+    this.apiBase = (window.CLIPCONNECT_CONFIG?.apiBase || '/api').replace(/\/$/, '');
     this.token = localStorage.getItem('clipconnect_token');
     this.user = JSON.parse(localStorage.getItem('clipconnect_user') || 'null');
     this.init();
