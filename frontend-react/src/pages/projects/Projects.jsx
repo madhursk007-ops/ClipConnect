@@ -337,11 +337,13 @@ const Projects = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Category</label>
                   <select name="category" required className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white focus:outline-none focus:border-primary-500/50">
-                    <option>Commercial</option>
-                    <option>YouTube</option>
-                    <option>Music Video</option>
-                    <option>Corporate</option>
-                    <option>Social Media</option>
+                    <option value="video-editing">Video Editing</option>
+                    <option value="motion-graphics">Motion Graphics</option>
+                    <option value="color-grading">Color Grading</option>
+                    <option value="audio-editing">Audio Editing</option>
+                    <option value="animation">Animation</option>
+                    <option value="vfx">Visual Effects (VFX)</option>
+                    <option value="full-production">Full Production</option>
                   </select>
                 </div>
 
