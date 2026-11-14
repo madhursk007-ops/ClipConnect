@@ -1,9 +1,20 @@
 const express = require('express');
 const { prisma } = require('../config/database');
 const { protect } = require('../middlewares/auth');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const router = express.Router();
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+  : null;
+
+function requireStripe(res) {
+  if (stripe) return true;
+  res.status(503).json({
+    success: false,
+    message: 'Paid subscriptions are temporarily unavailable. Payment configuration is required.'
+  });
+  return false;
+}
 
 // Subscription plans configuration
 const SUBSCRIPTION_PLANS = {
@@ -70,7 +81,6 @@ const SUBSCRIPTION_PLANS = {
 // @access  Private
 router.get('/current', protect, async (req, res) => {
   try {
-    // Get user subscription details
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: {
@@ -86,8 +96,6 @@ router.get('/current', protect, async (req, res) => {
 
     const planType = user.subscriptionPlan || 'free';
     const plan = SUBSCRIPTION_PLANS[planType];
-
-    // Calculate usage
     const usage = {
       projectsPosted: user.stats?.projectsPosted || 0,
       applicationsSubmitted: user.stats?.applicationsSubmitted || 0,
@@ -106,9 +114,9 @@ router.get('/current', protect, async (req, res) => {
           features: plan.features,
           limits: plan.limits
         },
-        status: user.subscription?.status || 'active',
-        currentPeriodEnd: user.subscription?.currentPeriodEnd,
-        cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
+        status: user.subscriptionStatus || 'active',
+        currentPeriodEnd: user.subscriptionPeriodEnd,
+        cancelAtPeriodEnd: user.cancelAtPeriodEnd || false,
         usage,
         features: getPlanFeatures(planType)
       }
@@ -126,42 +134,33 @@ router.get('/current', protect, async (req, res) => {
 // @desc    Upgrade subscription plan
 // @access  Private
 router.post('/upgrade', protect, async (req, res) => {
+  if (!requireStripe(res)) return;
   try {
     const { planType } = req.body;
-
     if (!['pro', 'premium'].includes(planType)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid plan type'
-      });
+      return res.status(400).json({ success: false, message: 'Invalid plan type' });
     }
 
     const plan = SUBSCRIPTION_PLANS[planType];
+    if (!plan.stripePriceId) {
+      return res.status(503).json({
+        success: false,
+        message: 'This subscription plan is not configured for checkout yet.'
+      });
+    }
 
-    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       customer_email: req.user.email,
-      line_items: [
-        {
-          price: plan.stripePriceId,
-          quantity: 1
-        }
-      ],
+      line_items: [{ price: plan.stripePriceId, quantity: 1 }],
       mode: 'subscription',
       success_url: `${process.env.FRONTEND_URL}/subscription/success?plan=${planType}`,
       cancel_url: `${process.env.FRONTEND_URL}/subscription/cancel`,
-      metadata: {
-        userId: req.user._id.toString(),
-        planType
-      }
+      metadata: { userId: req.user.id.toString(), planType }
     });
 
     res.status(200).json({
       success: true,
-      data: {
-        subscriptionUrl: session.url,
-        sessionId: session.id
-      }
+      data: { subscriptionUrl: session.url, sessionId: session.id }
     });
   } catch (error) {
     res.status(500).json({
@@ -176,24 +175,18 @@ router.post('/upgrade', protect, async (req, res) => {
 // @desc    Cancel subscription
 // @access  Private
 router.post('/cancel', protect, async (req, res) => {
+  if (!requireStripe(res)) return;
   try {
-    const user = await User.findById(req.user._id);
-
-    if (!user.subscription?.stripeSubscriptionId) {
-      return res.status(400).json({
-        success: false,
-        message: 'No active subscription found'
-      });
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user?.stripeSubscriptionId) {
+      return res.status(400).json({ success: false, message: 'No active subscription found' });
     }
 
-    // Cancel at period end
-    await stripe.subscriptions.update(
-      user.subscription.stripeSubscriptionId,
-      { cancel_at_period_end: true }
-    );
-
-    user.subscription.cancelAtPeriodEnd = true;
-    await user.save();
+    await stripe.subscriptions.update(user.stripeSubscriptionId, { cancel_at_period_end: true });
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { cancelAtPeriodEnd: true }
+    });
 
     res.status(200).json({
       success: true,
@@ -212,29 +205,20 @@ router.post('/cancel', protect, async (req, res) => {
 // @desc    Reactivate canceled subscription
 // @access  Private
 router.post('/reactivate', protect, async (req, res) => {
+  if (!requireStripe(res)) return;
   try {
-    const user = await User.findById(req.user._id);
-
-    if (!user.subscription?.stripeSubscriptionId) {
-      return res.status(400).json({
-        success: false,
-        message: 'No subscription found'
-      });
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user?.stripeSubscriptionId) {
+      return res.status(400).json({ success: false, message: 'No subscription found' });
     }
 
-    // Remove cancel_at_period_end
-    await stripe.subscriptions.update(
-      user.subscription.stripeSubscriptionId,
-      { cancel_at_period_end: false }
-    );
-
-    user.subscription.cancelAtPeriodEnd = false;
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Subscription reactivated'
+    await stripe.subscriptions.update(user.stripeSubscriptionId, { cancel_at_period_end: false });
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { cancelAtPeriodEnd: false }
     });
+
+    res.status(200).json({ success: true, message: 'Subscription reactivated' });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -248,54 +232,35 @@ router.post('/reactivate', protect, async (req, res) => {
 // @desc    Stripe webhook handler
 // @access  Public
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!requireStripe(res)) return;
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle events
-  switch (event.type) {
-    case 'checkout.session.completed':
-      const session = event.data.object;
-      const userId = session.metadata.userId;
-      const planType = session.metadata.planType;
-
-      // Update user subscription
-      await User.findByIdAndUpdate(userId, {
-        'subscription.plan': planType,
-        'subscription.status': 'active',
-        'subscription.stripeCustomerId': session.customer,
-        'subscription.stripeSubscriptionId': session.subscription,
-        'subscription.currentPeriodEnd': new Date(session.expires_at * 1000)
-      });
-      break;
-
-    case 'invoice.payment_failed':
-      const failedInvoice = event.data.object;
-      // Handle failed payment
-      break;
-
-    case 'customer.subscription.deleted':
-      const deletedSub = event.data.object;
-      const customerId = deletedSub.customer;
-
-      // Find user and downgrade to free
-      await User.findOneAndUpdate(
-        { 'subscription.stripeCustomerId': customerId },
-        {
-          'subscription.plan': 'free',
-          'subscription.status': 'canceled'
-        }
-      );
-      break;
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const userId = session.metadata.userId;
+    const planType = session.metadata.planType;
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        subscriptionPlan: planType,
+        subscriptionStatus: 'active',
+        stripeCustomerId: session.customer,
+        stripeSubscriptionId: session.subscription
+      }
+    });
+  } else if (event.type === 'customer.subscription.deleted') {
+    const deletedSub = event.data.object;
+    await prisma.user.updateMany({
+      where: { stripeCustomerId: deletedSub.customer },
+      data: { subscriptionPlan: 'free', subscriptionStatus: 'canceled' }
+    });
   }
 
   res.json({ received: true });
@@ -305,15 +270,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 // @desc    Get all subscription plans
 // @access  Public
 router.get('/plans', (req, res) => {
-  res.status(200).json({
-    success: true,
-    data: SUBSCRIPTION_PLANS
-  });
+  res.status(200).json({ success: true, data: SUBSCRIPTION_PLANS });
 });
 
-// Helper function to get plan features
 function getPlanFeatures(planType) {
-  const features = {
+  return {
     canPostUnlimited: planType !== 'free',
     canApplyUnlimited: planType !== 'free',
     hasAnalytics: planType !== 'free',
@@ -325,7 +286,6 @@ function getPlanFeatures(planType) {
     hasWhiteLabel: planType === 'premium',
     hasAccountManager: planType === 'premium'
   };
-  return features;
 }
 
 module.exports = router;
