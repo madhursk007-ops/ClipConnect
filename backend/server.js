@@ -34,12 +34,16 @@ app.use('/api/', limiter);
 // CORS configuration
 const corsOrigins = [
   'http://localhost:3000',
-  'http://127.0.0.1:51191',
   'http://127.0.0.1:3000',
-  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])
-];
+  ...(process.env.CORS_ORIGIN || '').split(','),
+  process.env.FRONTEND_URL || ''
+].map(origin => origin.trim()).filter(Boolean);
+
 app.use(cors({
-  origin: corsOrigins.map(origin => origin.trim()),
+  origin(origin, callback) {
+    if (!origin || corsOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Origin not allowed by CORS'));
+  },
   credentials: true
 }));
 
@@ -88,7 +92,7 @@ const server = http.createServer(app);
 // Initialize Socket.io
 initializeSocket(server);
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Socket.io ready for real-time connections`);
 });
