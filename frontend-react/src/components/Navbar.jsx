@@ -26,7 +26,7 @@ const Navbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const profileRef = useRef(null)
 
-  const isEditor = user?.role === 'editor'
+  const isEditor = String(user?.role || '').toLowerCase() === 'editor'
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, protected: true },
     { name: 'Marketplace', path: '/marketplace', icon: Search, protected: false },
