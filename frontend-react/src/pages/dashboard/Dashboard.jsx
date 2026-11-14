@@ -15,7 +15,7 @@ import { useAuth } from '@hooks';
 const Dashboard = () => {
   const { user } = useAuth();
   const isEditor = String(user?.role || '').toLowerCase() === 'editor';
-  const isClient = user?.role === 'client';
+  const isClient = String(user?.role || '').toLowerCase() === 'client';
 
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
