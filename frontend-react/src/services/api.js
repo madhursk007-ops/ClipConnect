@@ -58,6 +58,13 @@ api.interceptors.response.use(
 
     const { status, data } = error.response
 
+    if (status === 401 && (!originalRequest || originalRequest.url?.includes('/auth/refresh'))) {
+      localStorage.removeItem('auth-storage')
+      localStorage.removeItem('refreshToken')
+      window.location.href = '/login'
+      return Promise.reject(error)
+    }
+
     // Handle different status codes
     switch (status) {
       case 401:
@@ -71,7 +78,8 @@ api.interceptors.response.use(
             if (refreshToken) {
               const response = await api.post('/auth/refresh', { refreshToken })
               
-              const { token: newToken } = response.data.data
+              const { token: newToken, refreshToken: newRefreshToken } = response.data.data
+              if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken)
               
               // Update stored token
               const authStorage = localStorage.getItem('auth-storage')
@@ -82,6 +90,7 @@ api.interceptors.response.use(
               }
               
               // Retry original request
+              originalRequest.headers = originalRequest.headers || {}
               originalRequest.headers.Authorization = `Bearer ${newToken}`
               return api(originalRequest)
             }
