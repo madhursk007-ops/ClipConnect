@@ -366,11 +366,17 @@ router.post('/refresh', async (req, res) => {
     }
 
     const newAccessToken = generateToken(user.id);
+    const newRefreshToken = generateRefreshToken(user.id);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken: hashRefreshToken(newRefreshToken) }
+    });
 
     res.status(200).json({
       success: true,
       data: {
-        token: newAccessToken
+        token: newAccessToken,
+        refreshToken: newRefreshToken
       }
     });
   } catch (error) {
