@@ -13,7 +13,6 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Add auth token if available
     const token = localStorage.getItem('auth-storage')
     if (token) {
       try {
@@ -25,31 +24,22 @@ api.interceptors.request.use(
         console.error('Error parsing auth token:', error)
       }
     }
-
-    // Add request timestamp for debugging
     config.metadata = { startTime: new Date() }
-
     return config
   },
-  (error) => {
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )
 
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    // Log response time for debugging
     const endTime = new Date()
     const duration = endTime - response.config.metadata.startTime
     console.log(`API Response: ${response.config.method?.toUpperCase()} ${response.config.url} - ${duration}ms`)
-
     return response
   },
   async (error) => {
     const originalRequest = error.config
-
-    // Handle network errors
     if (!error.response) {
       console.error('Network error:', error)
       toast.error('Network error. Please check your connection.')
@@ -57,7 +47,6 @@ api.interceptors.response.use(
     }
 
     const { status, data } = error.response
-
     if (status === 401 && (!originalRequest || originalRequest.url?.includes('/auth/refresh'))) {
       localStorage.removeItem('auth-storage')
       localStorage.removeItem('refreshToken')
@@ -65,37 +54,27 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    // Handle different status codes
     switch (status) {
       case 401:
-        // Token expired or invalid
         if (!originalRequest._retry) {
           originalRequest._retry = true
-          
           try {
-            // Try to refresh token
             const refreshToken = localStorage.getItem('refreshToken')
             if (refreshToken) {
               const response = await api.post('/auth/refresh', { refreshToken })
-              
               const { token: newToken, refreshToken: newRefreshToken } = response.data.data
               if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken)
-              
-              // Update stored token
               const authStorage = localStorage.getItem('auth-storage')
               if (authStorage) {
                 const authData = JSON.parse(authStorage)
                 authData.state.token = newToken
                 localStorage.setItem('auth-storage', JSON.stringify(authData))
               }
-              
-              // Retry original request
               originalRequest.headers = originalRequest.headers || {}
               originalRequest.headers.Authorization = `Bearer ${newToken}`
               return api(originalRequest)
             }
           } catch (refreshError) {
-            // Refresh failed, logout user
             localStorage.removeItem('auth-storage')
             localStorage.removeItem('refreshToken')
             window.location.href = '/auth/login'
@@ -103,34 +82,25 @@ api.interceptors.response.use(
           }
         }
         break
-
       case 403:
         toast.error('Access denied. You do not have permission to perform this action.')
         break
-
       case 404:
         toast.error('The requested resource was not found.')
         break
-
       case 429:
         toast.error('Too many requests. Please try again later.')
         break
-
       case 500:
         toast.error('Server error. Please try again later.')
         break
-
       default:
-        // Handle validation errors
         if (data.errors && Array.isArray(data.errors)) {
-          data.errors.forEach((err) => {
-            toast.error(err.message || 'Validation error')
-          })
+          data.errors.forEach((err) => toast.error(err.message || 'Validation error'))
         } else {
           toast.error(data.message || 'An error occurred')
         }
     }
-
     return Promise.reject(error)
   }
 )
@@ -155,9 +125,7 @@ export const userService = {
   getFeaturedEditors: (params) => api.get('/users/editors/featured', { params }),
   updateUser: (id, userData) => api.put(`/users/${id}`, userData),
   deleteUser: (id) => api.delete(`/users/${id}`),
-  uploadAvatar: (formData) => api.post('/users/avatar', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
+  uploadAvatar: (formData) => api.post('/users/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   toggleAvailability: () => api.put('/users/availability'),
   getPortfolio: (userId) => api.get(`/users/${userId}/portfolio`),
   addPortfolioItem: (item) => api.post('/users/portfolio', item),
@@ -183,14 +151,15 @@ export const projectService = {
   sendProjectMessage: (id, messageData) => api.post(`/projects/${id}/messages`, messageData),
 }
 
+// These paths match backend/routes/messages.js. Fetching a conversation also marks
+// incoming messages as read on the server.
 export const messageService = {
-  getConversations: (params) => api.get('/messages/conversations', { params }),
-  getConversation: (id) => api.get(`/messages/conversations/${id}`),
+  getConversations: (params) => api.get('/messages', { params }),
+  getConversation: (userId, params) => api.get(`/messages/${userId}`, { params }),
   sendMessage: (messageData) => api.post('/messages', messageData),
-  markAsRead: (conversationId) => api.put(`/messages/conversations/${conversationId}/read`),
+  markAsRead: (userId) => api.get(`/messages/${userId}`),
   deleteMessage: (id) => api.delete(`/messages/${id}`),
-  getUnreadCount: () => api.get('/messages/unread-count'),
-  searchMessages: (query) => api.get('/messages/search', { params: { query } }),
+  getUnreadCount: () => api.get('/messages/unread/count'),
 }
 
 export const reviewService = {
@@ -226,26 +195,19 @@ export const uploadService = {
     const formData = new FormData()
     formData.append('image', file)
     formData.append('folder', folder)
-    return api.post('/upload/image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    return api.post('/upload/image', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
   uploadVideo: (file, folder = 'videos') => {
     const formData = new FormData()
     formData.append('video', file)
     formData.append('folder', folder)
-    return api.post('/upload/video', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 300000, // 5 minutes for video uploads
-    })
+    return api.post('/upload/video', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000 })
   },
   uploadDocument: (file, folder = 'documents') => {
     const formData = new FormData()
     formData.append('document', file)
     formData.append('folder', folder)
-    return api.post('/upload/document', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    return api.post('/upload/document', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
   deleteFile: (publicId) => api.delete('/upload/file', { data: { publicId } }),
 }
@@ -259,32 +221,21 @@ export const searchService = {
   clearSearchHistory: () => api.delete('/search/history'),
 }
 
-// Utility functions
 export const handleApiError = (error) => {
-  if (error.response?.data?.message) {
-    toast.error(error.response.data.message)
-  } else if (error.message) {
-    toast.error(error.message)
-  } else {
-    toast.error('An unexpected error occurred')
-  }
+  if (error.response?.data?.message) toast.error(error.response.data.message)
+  else if (error.message) toast.error(error.message)
+  else toast.error('An unexpected error occurred')
 }
 
 export const createFormData = (data) => {
   const formData = new FormData()
   Object.keys(data).forEach((key) => {
-    if (data[key] !== null && data[key] !== undefined) {
-      formData.append(key, data[key])
-    }
+    if (data[key] !== null && data[key] !== undefined) formData.append(key, data[key])
   })
   return formData
 }
 
-// Cancel token for cancelling requests
-export const createCancelToken = () => {
-  return axios.CancelToken.source()
-}
-
+export const createCancelToken = () => axios.CancelToken.source()
 export const isCancel = axios.isCancel
 
 export default api
