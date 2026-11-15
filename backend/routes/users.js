@@ -61,7 +61,6 @@ router.get('/', async (req, res) => {
       select: {
         id: true,
         username: true,
-        email: true,
         role: true,
         firstName: true,
         lastName: true,
@@ -130,7 +129,6 @@ router.get('/:id', async (req, res) => {
       select: {
         id: true,
         username: true,
-        email: true,
         role: true,
         firstName: true,
         lastName: true,
@@ -138,7 +136,6 @@ router.get('/:id', async (req, res) => {
         avatar: true,
         location: true,
         website: true,
-        phone: true,
         isEditor: true,
         skills: true,
         experience: true,
@@ -237,7 +234,6 @@ router.get('/role/:role', async (req, res) => {
       select: {
         id: true,
         username: true,
-        email: true,
         role: true,
         firstName: true,
         lastName: true,
