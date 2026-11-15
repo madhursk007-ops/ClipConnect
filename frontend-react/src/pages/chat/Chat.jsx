@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-  ArrowLeft, Bell, Check, CheckCheck, ChevronDown, CircleHelp, FileText,
-  Film, Hash, Image as ImageIcon, Info, MessageCircle, MoreHorizontal,
-  Paperclip, Plus, Search, Send, Settings, Smile, Sparkles, Users, Video,
-  X
+  ArrowLeft, Check, CheckCheck, ChevronDown, CircleHelp, FileText,
+  Film, Hash, Info, MessageCircle, MoreHorizontal, Paperclip, Plus,
+  Search, Send, Settings, Sparkles, Users
 } from 'lucide-react';
 import { useAuth } from '@hooks';
 import { messageService } from '@services/api';
