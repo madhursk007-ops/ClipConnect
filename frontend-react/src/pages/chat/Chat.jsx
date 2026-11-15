@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Check, CheckCheck, ChevronDown, CircleHelp, FileText,
-  Film, Hash, Info, MessageCircle, MoreHorizontal, Paperclip, Plus,
+  Film, Hash, Image as ImageIcon, Info, MessageCircle, MoreHorizontal, Paperclip, Plus,
   Search, Send, Settings, Sparkles, Users
 } from 'lucide-react';
 import { useAuth } from '@hooks';
